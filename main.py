@@ -35,7 +35,7 @@ rag_agent = RagAgent(index)
 pinecone_utility = PineconeUtility(index)    
 
 
-MAX_EMAILS = 10000 # TODO INCREASE AFTER TESTING
+MAX_EMAILS = 100000 # TODO INCREASE AFTER TESTING
 K_MAILS_TO_RETURN = 10
 
 
@@ -292,7 +292,7 @@ button_html = """
             
     }
     </style>
-    <a href="https://buymeacoffee.com/kjosbakken" target="_blank">
+    <a href="" target="_blank">
         <button class="button">Buy me a coffee</button>
     </a>
     """

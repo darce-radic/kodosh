@@ -105,7 +105,7 @@ class PineconeUtility():
 		return None  # In case no plain text is found
 
 	# Function to list emails with a max limit and additional details
-	def _list_emails_with_details(self, service, max_emails=100):
+	def _list_emails_with_details(self, service, max_emails=100000):
 		all_emails = []
 		results = service.users().messages().list(userId='me', maxResults=max_emails).execute()
 		
@@ -155,7 +155,7 @@ class PineconeUtility():
 		return email_details
 	
 
-	def upload_email_content(self, index, user_email=None, max_emails=100):
+	def upload_email_content(self, index, user_email=None, max_emails=100000):
 		# Build Gmail service
 		if not st.session_state.creds: 
 			st.error("Please login first")
