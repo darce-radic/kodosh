@@ -35,13 +35,13 @@ rag_agent = RagAgent(index)
 pinecone_utility = PineconeUtility(index)    
 
 
-MAX_EMAILS = 100 # TODO INCREASE AFTER TESTING
+MAX_EMAILS = 10000 # TODO INCREASE AFTER TESTING
 K_MAILS_TO_RETURN = 10
 
 
 if "user_email" in st.session_state and st.session_state.user_email is not None:
-    # st.title(f"Hello {st.session_state.user_email}")
-    st.title(f"Hello ...@gmail.com")
+    st.title(f"Hello {st.session_state.user_email}")
+    #st.title(f"Hello ...@gmail.com")
 else:
     st.title("Welcome to the Email Assistant")
 
