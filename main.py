@@ -55,6 +55,12 @@ try:
     if "flow" not in st.session_state:
         st.session_state.flow = None
 
+    if "rag_response" not in st.session_state:
+        st.session_state.rag_response = None
+
+    if "selected_mail_index" not in st.session_state:
+        st.session_state.selected_mail_index = 0
+
     # Logout function
     def logout(is_from_login_func=False):
         """Logs the user out by deleting the token and clearing session data."""
