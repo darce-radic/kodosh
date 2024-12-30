@@ -62,10 +62,10 @@ try:
         st.session_state.selected_mail_index = 0
 
     if "start_date" not in st.session_state:
-        st.session_state.start_date = (date.today() - timedelta(days=365)).isoformat()
+        st.session_state.start_date = date.today() - timedelta(days=365)
 
     if "end_date" not in st.session_state:
-        st.session_state.end_date = date.today().isoformat()
+        st.session_state.end_date = date.today()
 
     # Logout function
     def logout(is_from_login_func=False):
@@ -131,8 +131,8 @@ try:
         # Streamlit UI for specifying date range and multiple email accounts
         st.write("Specify the date range for fetching emails:")
 
-        start_date = st.date_input("Start date", value=date.fromisoformat(st.session_state.start_date), key='start_date')
-        end_date = st.date_input("End date", value=date.fromisoformat(st.session_state.end_date), key='end_date')
+        start_date = st.date_input("Start date", value=st.session_state.start_date, key='start_date')
+        end_date = st.date_input("End date", value=st.session_state.end_date, key='end_date')
 
         st.write("Specify the email accounts (comma-separated):")
         user_emails_input = st.text_input("Email accounts", key='user_emails')
@@ -208,15 +208,15 @@ try:
 
         # UI for selecting date range
         st.sidebar.header("Email Query Settings")
-        start_date = st.sidebar.date_input("Start Date", value=date.fromisoformat(st.session_state.start_date))
-        end_date = st.sidebar.date_input("End Date", value=date.fromisoformat(st.session_state.end_date))
+        start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date)
+        end_date = st.sidebar.date_input("End Date", value=st.session_state.end_date)
 
         if start_date and end_date:
             if start_date > end_date:
                 st.sidebar.error("Start date must be before end date.")
             else:
-                st.session_state.start_date = start_date.isoformat()
-                st.session_state.end_date = end_date.isoformat()
+                st.session_state.start_date = start_date
+                st.session_state.end_date = end_date
 
         # Page for listing content from the Google Sheet
         if st.sidebar.button("View Subscriptions"):
