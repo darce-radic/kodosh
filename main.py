@@ -309,3 +309,55 @@ if "tokens" in st.session_state:
         switch_account(selected_account)
 else:
     st.write("No accounts available. Please log in.")
+
+
+# UI for selecting date range
+st.sidebar.header("Email Query Settings")
+start_date = st.sidebar.date_input("Start Date")
+end_date = st.sidebar.date_input("End Date")
+
+if start_date and end_date:
+    if start_date > end_date:
+        st.sidebar.error("Start date must be before end date.")
+    else:
+        st.session_state.start_date = start_date.strftime('%Y/%m/%d')
+        st.session_state.end_date = end_date.strftime('%Y/%m/%d')
+
+
+# Page for listing content from the Google Sheet
+if st.sidebar.button("View Subscriptions"):
+    st.title("Subscriptions from Google Sheet")
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1juwBy3RK3XNeY6RWkPwqocJmDc4sb0QGetRdQuRA4Eg/export?format=csv'
+    subscriptions_df = pd.read_csv(sheet_url)
+    st.dataframe(subscriptions_df)
+
+
+# Page for extracting and displaying subscriptions from Pinecone index
+if st.sidebar.button("Extract Subscriptions"):
+    st.title("Extracted Subscriptions")
+
+    # Extract subscriptions using RAG and Pinecone
+    email_data = pinecone_utility.fetch_all_email_data()
+    subscriptions = []
+    for email in email_data:
+        text = email.get('text', '').lower()
+        if any(keyword in text for keyword in ['subscription', 'unsubscribe', 'renewal', 'billing']):
+            subscriptions.append({
+                'email_id': email.get('id'),
+                'subject': email.get('subject'),
+                'from': email.get('from'),
+                'date': email.get('date'),
+                'subscription_info': text
+            })
+
+    # Display subscriptions in the app
+    if subscriptions:
+        subscriptions_df = pd.DataFrame(subscriptions)
+        st.dataframe(subscriptions_df)
+
+        # Update the Google Sheet
+        sheet_url = 'https://docs.google.com/spreadsheets/d/1juwBy3RK3XNeY6RWkPwqocJmDc4sb0QGetRdQuRA4Eg/export?format=csv'
+        subscriptions_df.to_csv(sheet_url, index=False)
+        st.success("Subscriptions have been updated in the Google Sheet.")
+    else:
+        st.write("No subscriptions found.")
