@@ -5,25 +5,23 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from openai import OpenAI
 from tqdm.auto import tqdm
 from pinecone import Pinecone
 import html  # To escape special characters
 import json
-
 import logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
+from dotenv import load_dotenv
 from rag_agent import RagAgent
 from pinecone_utility import PineconeUtility
 from utility import authorize_gmail_api, authenticate_user
+from safe_constants import SCOPES
 
-# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+load_dotenv()
+
 PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
@@ -34,21 +32,12 @@ index = pc.Index("mails") # server index
 rag_agent = RagAgent(index)
 pinecone_utility = PineconeUtility(index)    
 
-
-MAX_EMAILS = 100000 # TODO INCREASE AFTER TESTING
 K_MAILS_TO_RETURN = 10
-
 
 if "user_email" in st.session_state and st.session_state.user_email is not None:
     st.title(f"Hello {st.session_state.user_email}")
-    #st.title(f"Hello ...@gmail.com")
 else:
     st.title("Welcome to the Email Assistant")
-
-from dotenv import load_dotenv
-load_dotenv()
-
-from safe_constants import SCOPES
 
 if "creds" not in st.session_state:
   st.session_state.creds = None
@@ -64,8 +53,6 @@ if "selected_mail" not in st.session_state:
 
 if "flow" not in st.session_state:
     st.session_state.flow = None
-
-
 
 # Logout function
 def logout(is_from_login_func=False):
@@ -83,14 +70,8 @@ def login():
     logout(is_from_login_func=True) # ensure clean slate before logging in
     authorize_gmail_api()
 
-
 if st.query_params.get('code', None):
     authenticate_user()
-
-
-
-
-
 
 if st.button("Login"):
     login()
@@ -99,17 +80,13 @@ if st.button("Logout"):
     logout()
     st.rerun()
 
-
-
 if st.button("Upload mail contents"):
-    st.info("While the app is in testing, only the latest 100 emails will be uploaded")
-    result_boolean = pinecone_utility.upload_email_content(index, user_email=st.session_state.user_email, max_emails=MAX_EMAILS)
+    st.info("Uploading emails...")
+    result_boolean = pinecone_utility.upload_email_content(index, user_emails=[st.session_state.user_email], sheet_url=st.secrets["GOOGLE_SHEET_URL"])
     if result_boolean: st.success("Emails uploaded successfully")
-
 
 st.write("## Query for specific emails (returns specific emails you are looking for)")
 prompt = st.text_input("Enter what emails you are looking for")
-
 
 col1, col2 = st.columns([1, 1])
 with col1:
@@ -361,3 +338,12 @@ if st.sidebar.button("Extract Subscriptions"):
         st.success("Subscriptions have been updated in the Google Sheet.")
     else:
         st.write("No subscriptions found.")
+
+if st.sidebar.button("View Potential Subscriptions"):
+    st.experimental_set_query_params(page="subscriptions_page")
+
+if st.sidebar.button("Manage Gmail Accounts"):
+    st.experimental_set_query_params(page="manage_accounts")
+
+if st.sidebar.button("Upload Bank CSV"):
+    st.experimental_set_query_params(page="upload_bank_csv")

@@ -12,11 +12,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class PineconeUtility():
     def __init__(self, index) -> None:
         self.rag_agent = RagAgent(index)
-        self.gc = gspread.service_account(filename='path/to/your/service_account.json')  # Add this line to initialize gspread
+        self.gc = gspread.service_account()  # Initialize gspread with public access
 
     def _generate_short_id(self, content: str) -> str:
         """
@@ -51,10 +50,8 @@ class PineconeUtility():
 
         for doc, embedding in zip(documents, doc_embeddings):
             doc_text = doc["text"]
-            doc_date = doc["date"]
-            doc_sender = doc["from"]
-            doc_subject = doc["subject"]
-            doc_email_link = doc["email_link"]
+            doc_date = doc.get("date")
+            doc_amount = doc.get("amount")
 
             if doc_text is None or doc_text == "": continue
 
@@ -65,7 +62,7 @@ class PineconeUtility():
             data_item = {
                 "id": doc_id,
                 "values": embedding,
-                "metadata": {"user_email": user_email, "text": doc_text, "date": doc_date, "sender": doc_sender, "subject": doc_subject, "email_link": doc_email_link},  # Include the text as metadata
+                "metadata": {"user_email": user_email, "text": doc_text, "date": doc_date, "amount": doc_amount},  # Include the text as metadata
             }
 
             # Append the data item to the list
@@ -164,21 +161,26 @@ class PineconeUtility():
         subscriptions = self.rag_agent.identify_subscriptions(email_text)
         return subscriptions
 
-    def _store_subscriptions_in_sheet(self, subscriptions: list[str], sheet_url: str) -> None:
+    def _store_subscriptions_in_sheet(self, subscriptions: list[dict[str, str]], sheet_url: str, sheet_name: str = "Sheet1") -> None:
         """
         Store identified subscriptions in a Google Sheets document.
 
         Args:
-        - subscriptions (list[str]): A list of identified subscriptions.
+        - subscriptions (list[dict[str, str]]): A list of identified subscriptions.
         - sheet_url (str): The URL of the Google Sheets document.
+        - sheet_name (str): The name of the sheet to store the data in.
 
         Returns:
         - None
         """
         sh = self.gc.open_by_url(sheet_url)
-        worksheet = sh.sheet1
+        try:
+            worksheet = sh.worksheet(sheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = sh.add_worksheet(title=sheet_name, rows="100", cols="20")
+
         for subscription in subscriptions:
-            worksheet.append_row([subscription])
+            worksheet.append_row([subscription['date'], subscription['amount'], subscription['description']])
 
     def upload_email_content(self, index, user_emails, sheet_url):
         """
@@ -212,27 +214,30 @@ class PineconeUtility():
         progress_bar = st.progress(0)
         status_text = st.text("Creating embeddings...")
 
-        # embed emails
-        embeddings = []
-        all_subscriptions = []
-        for idx, email in tqdm(enumerate(all_emails), desc="Creating embeddings"):
-            status_text.text(f"Creating embedding {idx + 1} of {len(all_emails)}")
-            if email["text"] is None or email["text"] == "": continue
-            try:
-                embeddings.append(self.rag_agent.get_embedding(email["text"]))
-                # Identify subscriptions
-                subscriptions = self._identify_subscriptions(email["text"])
-                all_subscriptions.extend(subscriptions)
-                # Update the progress bar and status text
-                progress_bar.progress((idx + 1) / len(all_emails))  # Progress bar update
-            except:
-                logger.info(f"Error embedding email {idx}")
+        # Process emails in batches
+        batch_size = 100
+        for i in range(0, len(all_emails), batch_size):
+            batch_emails = all_emails[i:i+batch_size]
+            embeddings = []
+            all_subscriptions = []
+            for idx, email in tqdm(enumerate(batch_emails), desc="Creating embeddings"):
+                status_text.text(f"Creating embedding {i + idx + 1} of {len(all_emails)}")
+                if email["text"] is None or email["text"] == "": continue
+                try:
+                    embeddings.append(self.rag_agent.get_embedding(email["text"]))
+                    # Identify subscriptions
+                    subscriptions = self._identify_subscriptions(email["text"])
+                    all_subscriptions.extend(subscriptions)
+                    # Update the progress bar and status text
+                    progress_bar.progress((i + idx + 1) / len(all_emails))  # Progress bar update
+                except:
+                    logger.info(f"Error embedding email {i + idx}")
 
-        data_with_meta_data = self._combine_vector_and_text(documents=all_emails, doc_embeddings=embeddings, user_email=None) 
-        self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
+            data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=None) 
+            self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
 
-        # Store identified subscriptions in Google Sheets
-        self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
+            # Store identified subscriptions in Google Sheets
+            self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
 
         return True
 

@@ -5,34 +5,27 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from openai import OpenAI
 from tqdm.auto import tqdm
 from pinecone import Pinecone
 import json
-
 import logging
+from dotenv import load_dotenv
+from safe_constants import SCOPES, MAIN_REDIRECT_URI, ALL_REDIRECT_URIS, ALL_JAVASCRIPT_ORIGINS, PROJECT_ID, AUTH_URI, TOKEN_URI, AUTH_PROVIDER_X509_CERT_URL
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from dotenv import load_dotenv
 load_dotenv()
-from safe_constants import SCOPES, MAIN_REDIRECT_URI, ALL_REDIRECT_URIS, ALL_JAVASCRIPT_ORIGINS
-
 
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1' # avoids error being thrown for duplicate scopes (doesnt matter for this use case)
 
-# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
 openai_client = OpenAI()
 
-
-from safe_constants import PROJECT_ID, AUTH_URI, TOKEN_URI, AUTH_PROVIDER_X509_CERT_URL
 CLIENT_ID = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_ID"]
 CLIENT_SECRET = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_SECRET"]
 
@@ -52,56 +45,54 @@ def get_user_info(creds):
 
 
 def authorize_gmail_api():
-      """Shows basic usage of the Gmail API.
-      Lists the user's Gmail labels.
-      """
-      creds = None
-      if os.path.exists("token.json"):
+    """Shows basic usage of the Gmail API.
+    Lists the user's Gmail labels.
+    """
+    creds = None
+    if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
         st.info("Already logged in")
-      # If there are no (valid) credentials available, let the user log in.
-      if not creds or not creds.valid:
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-          creds.refresh(Request())
+            creds.refresh(Request())
         else:
-          flow = InstalledAppFlow.from_client_config(
-              CLIENT_CONFIG, SCOPES
-          )
-          flow.redirect_uri = MAIN_REDIRECT_URI
+            flow = InstalledAppFlow.from_client_config(
+                CLIENT_CONFIG, SCOPES
+            )
+            flow.redirect_uri = MAIN_REDIRECT_URI
 
-          authorization_url, state = flow.authorization_url(
-              access_type='offline',
-              include_granted_scopes='true',
-              prompt='consent')
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                prompt='consent')
 
-
-          st.markdown(
-            f"""
-            <style>
-            .custom-button {{
-                display: inline-block;
-                background-color: #4CAF50; /* Green background */
-                color: white !important;  /* White text */
-                padding: 10px 24px;
-                text-align: center;
-                text-decoration: none;
-                font-size: 16px;
-                border-radius: 5px;
-                margin-top: 5px; /* Reduce space above the button */
-                margin-bottom: 5px; /* Reduce space below the button */
-            }}
-            .custom-button:hover {{
-                background-color: #45a049;
-            }}
-            </style>
-            <a href="{authorization_url}" target="_blank" class="custom-button">Authorize with Google</a>
-            """,
-            unsafe_allow_html=True
-        )
-            
+            st.markdown(
+                f"""
+                <style>
+                .custom-button {{
+                    display: inline-block;
+                    background-color: #4CAF50; /* Green background */
+                    color: white !important;  /* White text */
+                    padding: 10px 24px;
+                    text-align: center;
+                    text-decoration: none;
+                    font-size: 16px;
+                    border-radius: 5px;
+                    margin-top: 5px; /* Reduce space above the button */
+                    margin-bottom: 5px; /* Reduce space below the button */
+                }}
+                .custom-button:hover {{
+                    background-color: #45a049;
+                }}
+                </style>
+                <a href="{authorization_url}" target="_blank" class="custom-button">Authorize with Google</a>
+                """,
+                unsafe_allow_html=True
+            )
 
 def authenticate_user():
-    """after loggin in with google, you have a code in the url. This function retrieves the code and fetches the credentials and authenticates user"""
+    """after logging in with google, you have a code in the url. This function retrieves the code and fetches the credentials and authenticates user"""
     auth_code = st.query_params.get('code', None)
     if auth_code is not None:
         logger.info("INSIDE CODE")
@@ -130,6 +121,7 @@ def authenticate_user():
             st.session_state.user_email = user_email
             st.rerun()
     else: st.error("Could not log in user")
+
 def switch_account(selected_email):
     """
     Switch to the selected Gmail account.

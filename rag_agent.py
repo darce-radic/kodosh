@@ -5,8 +5,6 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from openai import OpenAI
 from tqdm.auto import tqdm
 from pinecone import Pinecone
@@ -14,21 +12,16 @@ import hashlib
 from langchain_openai import ChatOpenAI
 import json
 from typing import Optional
-
 from dotenv import load_dotenv
-load_dotenv()
 from safe_constants import SCOPES
 
-# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+load_dotenv()
+
 PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
-
 pc = Pinecone(api_key=PINECONE_API_KEY)
 openai_client = OpenAI()
-
-
 
 # TODO lage mail object?
 
