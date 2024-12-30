@@ -4,18 +4,18 @@ import streamlit as st
 from googleapiclient.discovery import build
 import base64
 import gspread  # Add this import for Google Sheets API
-
+from gspread_dataframe import set_with_dataframe
 from rag_agent import RagAgent
 from safe_constants import MAX_CHARACTER_LENGTH_EMAIL
-
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PineconeUtility():
     def __init__(self, index) -> None:
         self.rag_agent = RagAgent(index)
-        self.gc = gspread.service_account()  # Initialize gspread with public access
+        self.gc = gspread.oauth()  # Initialize gspread with OAuth
 
     def _generate_short_id(self, content: str) -> str:
         """
@@ -179,8 +179,11 @@ class PineconeUtility():
         except gspread.exceptions.WorksheetNotFound:
             worksheet = sh.add_worksheet(title=sheet_name, rows="100", cols="20")
 
-        for subscription in subscriptions:
-            worksheet.append_row([subscription['date'], subscription['amount'], subscription['description']])
+        existing_data = worksheet.get_all_records()
+        new_data = pd.DataFrame(subscriptions)
+        updated_data = pd.concat([pd.DataFrame(existing_data), new_data], ignore_index=True)
+        worksheet.clear()
+        set_with_dataframe(worksheet, updated_data)
 
     def upload_email_content(self, index, user_emails, sheet_url):
         """
