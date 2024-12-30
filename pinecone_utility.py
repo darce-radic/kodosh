@@ -12,10 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-
 class PineconeUtility():
     def __init__(self, index) -> None:
-        pass
         self.rag_agent = RagAgent(index)
 
     def _generate_short_id(self, content: str) -> str:
@@ -33,7 +31,6 @@ class PineconeUtility():
         hash_obj = hashlib.sha256()
         hash_obj.update(content.encode("utf-8"))
         return hash_obj.hexdigest()
-
 
     def _combine_vector_and_text(self,
         documents: list[any], doc_embeddings: list[list[float]], user_email: str = None
@@ -73,7 +70,6 @@ class PineconeUtility():
             data_with_metadata.append(data_item)
 
         return data_with_metadata
-    
 
     def _upsert_data_to_pinecone(self, index, data_with_metadata: list[dict[str, any]]) -> None:
         """
@@ -86,9 +82,6 @@ class PineconeUtility():
         - None
         """
         index.upsert(vectors=data_with_metadata)
-
-
-    import base64
 
     def _get_email_body(self, msg):
         if 'parts' in msg['payload']:
@@ -104,169 +97,60 @@ class PineconeUtility():
                 return base64.urlsafe_b64decode(body).decode('utf-8')
         return None  # In case no plain text is found
 
-    # Function to list emails with a max limit and additional details
-    def fetch_emails_within_time_period(service, max_emails=None):
-    """
-    Fetch emails from Gmail API within a specific time period.
+    def fetch_emails_within_time_period(self, service, max_emails=None):
+        """
+        Fetch emails from Gmail API within a specific time period.
 
-    Args:
-        service: Authorized Gmail API service instance.
-        max_emails (int, optional): Maximum number of emails to fetch. Defaults to None.
+        Args:
+            service: Authorized Gmail API service instance.
+            max_emails (int, optional): Maximum number of emails to fetch. Defaults to None.
 
-    Returns:
-        List[dict]: List of email details with metadata.
-    """
-    start_date = st.session_state.get('start_date')
-    end_date = st.session_state.get('end_date')
-    if not start_date or not end_date:
-        raise ValueError('Start date and end date must be specified.')
+        Returns:
+            List[dict]: List of email details with metadata.
+        """
+        start_date = st.session_state.get('start_date')
+        end_date = st.session_state.get('end_date')
+        if not start_date or not end_date:
+            raise ValueError('Start date and end date must be specified.')
 
-    all_emails = []
-    query = f"after:{start_date} before:{end_date}"
-    results = service.users().messages().list(userId='me', q=query).execute()
-
-    # Fetch the first page of messages
-    messages = results.get('messages', [])
-    all_emails.extend(messages)
-
-    # Keep fetching emails until there are no more pages
-    while 'nextPageToken' in results:
-        page_token = results['nextPageToken']
-        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-    email_details = []
-    for idx, email in enumerate(all_emails):
-        try:
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
-
-            email_text = extract_email_body(msg)
-            if email_text is None or email_text == "":
-                continue
-
-            email_data = {
-                "text": email_text,
-                "id": msg['id'],
-                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-        except Exception as e:
-            print(f"Error fetching email details: {e}")
-
-    return email_details
-(service, max_emails=100000):
-    """
-    Fetch emails from Gmail API within a specific time period.
-
-    Args:
-        service: Authorized Gmail API service instance.
-        max_emails (int): Maximum number of emails to fetch.
-
-    Returns:
-        List[dict]: List of email details with metadata.
-    """
-    start_date = st.session_state.get('start_date')
-    end_date = st.session_state.get('end_date')
-    if not start_date or not end_date:
-        raise ValueError('Start date and end date must be specified.')
-
-    all_emails = []
-    query = f"after:{start_date} before:{end_date}"
-    results = service.users().messages().list(userId='me', q=query, maxResults=max_emails).execute()
-
-    # Fetch the first page of messages
-    messages = results.get('messages', [])
-    all_emails.extend(messages)
-
-    # Keep fetching emails until there are no more pages or we hit the max limit
-    while 'nextPageToken' in results and len(all_emails) < max_emails:
-        page_token = results['nextPageToken']
-        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-        # Break if we exceed the max limit
-        if len(all_emails) >= max_emails:
-            all_emails = all_emails[:max_emails]  # Trim to max limit
-            break
-
-    email_details = []
-    for idx, email in enumerate(all_emails):
-        try:
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
-
-            email_text = extract_email_body(msg)
-            if email_text is None or email_text == "":
-                continue
-
-            email_data = {
-                "text": email_text,
-                "id": msg['id'],
-                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-        except Exception as e:
-            print(f"Error fetching email details: {e}")
-
-    return email_details
-(self, service, max_emails=100000):
         all_emails = []
-        results = service.users().messages().list(userId='me', maxResults=max_emails).execute()
-        
+        query = f"after:{start_date} before:{end_date}"
+        results = service.users().messages().list(userId='me', q=query).execute()
+
         # Fetch the first page of messages
         messages = results.get('messages', [])
         all_emails.extend(messages)
 
-        # Keep fetching emails until we reach the max limit or there are no more pages
-        while 'nextPageToken' in results and len(all_emails) < max_emails:
+        # Keep fetching emails until there are no more pages
+        while 'nextPageToken' in results:
             page_token = results['nextPageToken']
-            results = service.users().messages().list(userId='me', pageToken=page_token).execute()
+            results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
             messages = results.get('messages', [])
             all_emails.extend(messages)
 
-            # Break if we exceed the max limit
-            if len(all_emails) >= max_emails:
-                all_emails = all_emails[:max_emails]  # Trim to max limit
-                break
-
-        progress_bar2 = st.progress(0)
-        status_text2 = st.text("Retrieving your emails...")
-
-
         email_details = []
-        for idx, email in tqdm(enumerate(all_emails), desc="Fetching email details"):
-            # Fetch full email details
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
+        for idx, email in enumerate(all_emails):
+            try:
+                msg = service.users().messages().get(userId='me', id=email['id']).execute()
+                headers = msg['payload']['headers']
 
-            email_text = self._get_email_body(msg)
-            if email_text is None or email_text=="": continue
-            if len(email_text) >= MAX_CHARACTER_LENGTH_EMAIL: email_text = email_text[:MAX_CHARACTER_LENGTH_EMAIL]  # Truncate long emails
-            
-            # Extract date, sender, and subject from headers
-            email_data = {
-                "text": email_text,
-                'id': msg['id'],
-                'date': next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                'from': next((header['value'] for header in headers if header['name'] == 'From'), None),
-                'subject': next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-            progress_bar2.progress((idx + 1) / len(all_emails))  # Progress bar update
-            status_text2.text(f"Retrieving email {idx + 1} of {len(all_emails)}")
+                email_text = self._get_email_body(msg)
+                if email_text is None or email_text == "":
+                    continue
+
+                email_data = {
+                    "text": email_text,
+                    "id": msg['id'],
+                    "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
+                    "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
+                    "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
+                    "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
+                }
+                email_details.append(email_data)
+            except Exception as e:
+                print(f"Error fetching email details: {e}")
 
         return email_details
-    
 
     def upload_email_content(self, index, user_email=None, max_emails=100000):
         # Build Gmail service
@@ -291,177 +175,7 @@ class PineconeUtility():
             except:
                 logger.info(f"Error embedding email {idx}")
 
-            
         data_with_meta_data = self._combine_vector_and_text(documents=emails, doc_embeddings=embeddings, user_email=user_email) 
         self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
 
         return True
-def fetch_emails_within_time_period(service, max_emails=None):
-    """
-    Fetch emails from Gmail API within a specific time period.
-
-    Args:
-        service: Authorized Gmail API service instance.
-        max_emails (int, optional): Maximum number of emails to fetch. Defaults to None.
-
-    Returns:
-        List[dict]: List of email details with metadata.
-    """
-    start_date = st.session_state.get('start_date')
-    end_date = st.session_state.get('end_date')
-    if not start_date or not end_date:
-        raise ValueError('Start date and end date must be specified.')
-
-    all_emails = []
-    query = f"after:{start_date} before:{end_date}"
-    results = service.users().messages().list(userId='me', q=query).execute()
-
-    # Fetch the first page of messages
-    messages = results.get('messages', [])
-    all_emails.extend(messages)
-
-    # Keep fetching emails until there are no more pages
-    while 'nextPageToken' in results:
-        page_token = results['nextPageToken']
-        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-    email_details = []
-    for idx, email in enumerate(all_emails):
-        try:
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
-
-            email_text = extract_email_body(msg)
-            if email_text is None or email_text == "":
-                continue
-
-            email_data = {
-                "text": email_text,
-                "id": msg['id'],
-                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-        except Exception as e:
-            print(f"Error fetching email details: {e}")
-
-    return email_details
-(service, max_emails=100000):
-    """
-    Fetch emails from Gmail API within a specific time period.
-
-    Args:
-        service: Authorized Gmail API service instance.
-        max_emails (int): Maximum number of emails to fetch.
-
-    Returns:
-        List[dict]: List of email details with metadata.
-    """
-    start_date = st.session_state.get('start_date')
-    end_date = st.session_state.get('end_date')
-    if not start_date or not end_date:
-        raise ValueError('Start date and end date must be specified.')
-
-    all_emails = []
-    query = f"after:{start_date} before:{end_date}"
-    results = service.users().messages().list(userId='me', q=query, maxResults=max_emails).execute()
-
-    # Fetch the first page of messages
-    messages = results.get('messages', [])
-    all_emails.extend(messages)
-
-    # Keep fetching emails until there are no more pages or we hit the max limit
-    while 'nextPageToken' in results and len(all_emails) < max_emails:
-        page_token = results['nextPageToken']
-        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-        # Break if we exceed the max limit
-        if len(all_emails) >= max_emails:
-            all_emails = all_emails[:max_emails]  # Trim to max limit
-            break
-
-    email_details = []
-    for idx, email in enumerate(all_emails):
-        try:
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
-
-            email_text = extract_email_body(msg)
-            if email_text is None or email_text == "":
-                continue
-
-            email_data = {
-                "text": email_text,
-                "id": msg['id'],
-                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-        except Exception as e:
-            print(f"Error fetching email details: {e}")
-
-    return email_details
-(service, start_date, end_date, max_emails=100000):
-    """
-    Fetch emails from Gmail API within a specific time period.
-
-    Args:
-        service: Authorized Gmail API service instance.
-        start_date (str): Start date in the format 'YYYY/MM/DD'.
-        end_date (str): End date in the format 'YYYY/MM/DD'.
-        max_emails (int): Maximum number of emails to fetch.
-
-    Returns:
-        List[dict]: List of email details with metadata.
-    """
-    all_emails = []
-    query = f"after:{start_date} before:{end_date}"
-    results = service.users().messages().list(userId='me', q=query, maxResults=max_emails).execute()
-
-    # Fetch the first page of messages
-    messages = results.get('messages', [])
-    all_emails.extend(messages)
-
-    # Keep fetching emails until there are no more pages or we hit the max limit
-    while 'nextPageToken' in results and len(all_emails) < max_emails:
-        page_token = results['nextPageToken']
-        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-        # Break if we exceed the max limit
-        if len(all_emails) >= max_emails:
-            all_emails = all_emails[:max_emails]  # Trim to max limit
-            break
-
-    email_details = []
-    for idx, email in enumerate(all_emails):
-        try:
-            msg = service.users().messages().get(userId='me', id=email['id']).execute()
-            headers = msg['payload']['headers']
-
-            email_text = extract_email_body(msg)
-            if email_text is None or email_text == "":
-                continue
-
-            email_data = {
-                "text": email_text,
-                "id": msg['id'],
-                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-            }
-            email_details.append(email_data)
-        except Exception as e:
-            print(f"Error fetching email details: {e}")
-
-    return email_details
