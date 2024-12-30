@@ -7,8 +7,8 @@ AUTH_PROVIDER_X509_CERT_URL = "https://www.googleapis.com/oauth2/v1/certs"
 
 MAX_CHARACTER_LENGTH_EMAIL = 12000
 
-MAIN_REDIRECT_URI = 'https://kodosh.streamlit.app'
+MAIN_REDIRECT_URI = 'https://kodosh-er8n3cqjql2uxsdhvzdpfm.streamlit.app'
 # MAIN_REDIRECT_URI = 'http://localhost:8080/'
 
-ALL_REDIRECT_URIS = ["http://localhost:8080/", 'https://kodosh.streamlit.app']
-ALL_JAVASCRIPT_ORIGINS = ["http://localhost:8080", 'https://kodosh.streamlit.app']
+ALL_REDIRECT_URIS = ["http://localhost:8080/", 'https://kodosh-er8n3cqjql2uxsdhvzdpfm.streamlit.app']
+ALL_JAVASCRIPT_ORIGINS = ["http://localhost:8080", 'https://kodosh-er8n3cqjql2uxsdhvzdpfm.streamlit.app']
