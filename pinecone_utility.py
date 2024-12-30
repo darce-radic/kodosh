@@ -8,14 +8,39 @@ from gspread_dataframe import set_with_dataframe
 from rag_agent import RagAgent
 from safe_constants import MAX_CHARACTER_LENGTH_EMAIL
 import logging
+import os
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PineconeUtility():
     def __init__(self, index) -> None:
-        self.rag_agent = RagAgent(index)
-        self.gc = gspread.oauth()  # Initialize gspread with OAuth
+        try:
+            self.rag_agent = RagAgent(index)
+            self.gc = self._initialize_gspread()
+        except Exception as e:
+            logger.error(f"Error initializing PineconeUtility: {e}")
+            st.error("Failed to initialize PineconeUtility. Please try again.")
+
+    def _initialize_gspread(self):
+        try:
+            credentials = {
+                "type": os.getenv("GSPREAD_TYPE"),
+                "project_id": os.getenv("GSPREAD_PROJECT_ID"),
+                "private_key_id": os.getenv("GSPREAD_PRIVATE_KEY_ID"),
+                "private_key": os.getenv("GSPREAD_PRIVATE_KEY").replace('\\n', '\n'),
+                "client_email": os.getenv("GSPREAD_CLIENT_EMAIL"),
+                "client_id": os.getenv("GSPREAD_CLIENT_ID"),
+                "auth_uri": os.getenv("GSPREAD_AUTH_URI"),
+                "token_uri": os.getenv("GSPREAD_TOKEN_URI"),
+                "auth_provider_x509_cert_url": os.getenv("GSPREAD_AUTH_PROVIDER_X509_CERT_URL"),
+                "client_x509_cert_url": os.getenv("GSPREAD_CLIENT_X509_CERT_URL")
+            }
+            return gspread.service_account_from_dict(credentials)
+        except Exception as e:
+            logger.error(f"Error initializing gspread: {e}")
+            st.error("Failed to initialize gspread. Please check your credentials.")
 
     def _generate_short_id(self, content: str) -> str:
         """
@@ -80,21 +105,29 @@ class PineconeUtility():
         Returns:
         - None
         """
-        index.upsert(vectors=data_with_metadata)
+        try:
+            index.upsert(vectors=data_with_metadata)
+        except Exception as e:
+            logger.error(f"Error upserting data to Pinecone: {e}")
+            st.error("Failed to upsert data to Pinecone. Please try again.")
 
     def _get_email_body(self, msg):
-        if 'parts' in msg['payload']:
-            # The email has multiple parts (possibly plain text and HTML)
-            for part in msg['payload']['parts']:
-                if part['mimeType'] == 'text/plain':  # Look for plain text
-                    body = part['body']['data']
+        try:
+            if 'parts' in msg['payload']:
+                # The email has multiple parts (possibly plain text and HTML)
+                for part in msg['payload']['parts']:
+                    if part['mimeType'] == 'text/plain':  # Look for plain text
+                        body = part['body']['data']
+                        return base64.urlsafe_b64decode(body).decode('utf-8')
+            else:
+                # The email might have a single part, like plain text or HTML
+                body = msg['payload']['body'].get('data')
+                if body:
                     return base64.urlsafe_b64decode(body).decode('utf-8')
-        else:
-            # The email might have a single part, like plain text or HTML
-            body = msg['payload']['body'].get('data')
-            if body:
-                return base64.urlsafe_b64decode(body).decode('utf-8')
-        return None  # In case no plain text is found
+            return None  # In case no plain text is found
+        except Exception as e:
+            logger.error(f"Error getting email body: {e}")
+            st.error("Failed to get email body. Please try again.")
 
     def fetch_emails_within_time_period(self, service, start_date, end_date):
         """
@@ -108,44 +141,49 @@ class PineconeUtility():
         Returns:
             List[dict]: List of email details with metadata.
         """
-        all_emails = []
-        query = f"after:{start_date} before:{end_date}"
-        results = service.users().messages().list(userId='me', q=query).execute()
+        try:
+            all_emails = []
+            query = f"after:{start_date} before:{end_date}"
+            results = service.users().messages().list(userId='me', q=query).execute()
 
-        # Fetch the first page of messages
-        messages = results.get('messages', [])
-        all_emails.extend(messages)
-
-        # Keep fetching emails until there are no more pages
-        while 'nextPageToken' in results:
-            page_token = results['nextPageToken']
-            results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
+            # Fetch the first page of messages
             messages = results.get('messages', [])
             all_emails.extend(messages)
 
-        email_details = []
-        for idx, email in enumerate(all_emails):
-            try:
-                msg = service.users().messages().get(userId='me', id=email['id']).execute()
-                headers = msg['payload']['headers']
+            # Keep fetching emails until there are no more pages
+            while 'nextPageToken' in results:
+                page_token = results['nextPageToken']
+                results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
+                messages = results.get('messages', [])
+                all_emails.extend(messages)
 
-                email_text = self._get_email_body(msg)
-                if email_text is None or email_text == "":
-                    continue
+            email_details = []
+            for idx, email in enumerate(all_emails):
+                try:
+                    msg = service.users().messages().get(userId='me', id=email['id']).execute()
+                    headers = msg['payload']['headers']
 
-                email_data = {
-                    "text": email_text,
-                    "id": msg['id'],
-                    "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                    "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                    "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                    "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-                }
-                email_details.append(email_data)
-            except Exception as e:
-                print(f"Error fetching email details: {e}")
+                    email_text = self._get_email_body(msg)
+                    if email_text is None or email_text == "":
+                        continue
 
-        return email_details
+                    email_data = {
+                        "text": email_text,
+                        "id": msg['id'],
+                        "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
+                        "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
+                        "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
+                        "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
+                    }
+                    email_details.append(email_data)
+                except Exception as e:
+                    logger.error(f"Error fetching email details: {e}")
+                    st.error("Failed to fetch email details. Please try again.")
+
+            return email_details
+        except Exception as e:
+            logger.error(f"Error fetching emails within time period: {e}")
+            st.error("Failed to fetch emails. Please try again.")
 
     def _identify_subscriptions(self, email_text: str) -> list[str]:
         """
@@ -157,9 +195,13 @@ class PineconeUtility():
         Returns:
         - subscriptions (list[str]): A list of identified subscriptions.
         """
-        # Use RAG to identify potential subscriptions
-        subscriptions = self.rag_agent.identify_subscriptions(email_text)
-        return subscriptions
+        try:
+            # Use RAG to identify potential subscriptions
+            subscriptions = self.rag_agent.identify_subscriptions(email_text)
+            return subscriptions
+        except Exception as e:
+            logger.error(f"Error identifying subscriptions: {e}")
+            st.error("Failed to identify subscriptions. Please try again.")
 
     def _store_subscriptions_in_sheet(self, subscriptions: list[dict[str, str]], sheet_url: str, sheet_name: str = "Sheet1") -> None:
         """
@@ -173,17 +215,21 @@ class PineconeUtility():
         Returns:
         - None
         """
-        sh = self.gc.open_by_url(sheet_url)
         try:
-            worksheet = sh.worksheet(sheet_name)
-        except gspread.exceptions.WorksheetNotFound:
-            worksheet = sh.add_worksheet(title=sheet_name, rows="100", cols="20")
+            sh = self.gc.open_by_url(sheet_url)
+            try:
+                worksheet = sh.worksheet(sheet_name)
+            except gspread.exceptions.WorksheetNotFound:
+                worksheet = sh.add_worksheet(title=sheet_name, rows="100", cols="20")
 
-        existing_data = worksheet.get_all_records()
-        new_data = pd.DataFrame(subscriptions)
-        updated_data = pd.concat([pd.DataFrame(existing_data), new_data], ignore_index=True)
-        worksheet.clear()
-        set_with_dataframe(worksheet, updated_data)
+            existing_data = worksheet.get_all_records()
+            new_data = pd.DataFrame(subscriptions)
+            updated_data = pd.concat([pd.DataFrame(existing_data), new_data], ignore_index=True)
+            worksheet.clear()
+            set_with_dataframe(worksheet, updated_data)
+        except Exception as e:
+            logger.error(f"Error storing subscriptions in sheet: {e}")
+            st.error("Failed to store subscriptions in sheet. Please try again.")
 
     def upload_email_content(self, index, user_emails, sheet_url):
         """
@@ -197,52 +243,57 @@ class PineconeUtility():
         Returns:
             bool: True if successful, False otherwise.
         """
-        if not st.session_state.creds: 
-            st.error("Please login first")
-            return False
+        try:
+            if not st.session_state.creds: 
+                st.error("Please login first")
+                return False
 
-        start_date = st.session_state.get('start_date')
-        end_date = st.session_state.get('end_date')
-        if not start_date or not end_date:
-            st.error('Start date and end date must be specified.')
-            return False
+            start_date = st.session_state.get('start_date')
+            end_date = st.session_state.get('end_date')
+            if not start_date or not end_date:
+                st.error('Start date and end date must be specified.')
+                return False
 
-        service = build('gmail', 'v1', credentials=st.session_state.creds)
+            service = build('gmail', 'v1', credentials=st.session_state.creds)
 
-        all_emails = []
-        for user_email in user_emails:
-            emails = self.fetch_emails_within_time_period(service, start_date, end_date)
-            all_emails.extend(emails)
+            all_emails = []
+            for user_email in user_emails:
+                emails = self.fetch_emails_within_time_period(service, start_date, end_date)
+                all_emails.extend(emails)
 
-        progress_bar = st.progress(0)
-        status_text = st.text("Creating embeddings...")
+            progress_bar = st.progress(0)
+            status_text = st.text("Creating embeddings...")
 
-        # Process emails in batches
-        batch_size = 100
-        for i in range(0, len(all_emails), batch_size):
-            batch_emails = all_emails[i:i+batch_size]
-            embeddings = []
-            all_subscriptions = []
-            for idx, email in tqdm(enumerate(batch_emails), desc="Creating embeddings"):
-                status_text.text(f"Creating embedding {i + idx + 1} of {len(all_emails)}")
-                if email["text"] is None or email["text"] == "": continue
-                try:
-                    embeddings.append(self.rag_agent.get_embedding(email["text"]))
-                    # Identify subscriptions
-                    subscriptions = self._identify_subscriptions(email["text"])
-                    all_subscriptions.extend(subscriptions)
-                    # Update the progress bar and status text
-                    progress_bar.progress((i + idx + 1) / len(all_emails))  # Progress bar update
-                except:
-                    logger.info(f"Error embedding email {i + idx}")
+            # Process emails in batches
+            batch_size = 100
+            for i in range(0, len(all_emails), batch_size):
+                batch_emails = all_emails[i:i+batch_size]
+                embeddings = []
+                all_subscriptions = []
+                for idx, email in tqdm(enumerate(batch_emails), desc="Creating embeddings"):
+                    status_text.text(f"Creating embedding {i + idx + 1} of {len(all_emails)}")
+                    if email["text"] is None or email["text"] == "": continue
+                    try:
+                        embeddings.append(self.rag_agent.get_embedding(email["text"]))
+                        # Identify subscriptions
+                        subscriptions = self._identify_subscriptions(email["text"])
+                        all_subscriptions.extend(subscriptions)
+                        # Update the progress bar and status text
+                        progress_bar.progress((i + idx + 1) / len(all_emails))  # Progress bar update
+                    except Exception as e:
+                        logger.error(f"Error embedding email {i + idx}: {e}")
+                        st.error("Failed to create embedding. Please try again.")
 
-            data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=None) 
-            self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
+                data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=None) 
+                self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
 
-            # Store identified subscriptions in Google Sheets
-            self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
+                # Store identified subscriptions in Google Sheets
+                self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
 
-        return True
+            return True
+        except Exception as e:
+            logger.error(f"Error uploading email content: {e}")
+            st.error("Failed to upload email content. Please try again.")
 
 # Streamlit UI for specifying date range and multiple email accounts
 st.title("Email Content Uploader")

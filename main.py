@@ -25,96 +25,100 @@ load_dotenv()
 PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
-pc = Pinecone(api_key=PINECONE_API_KEY)
-client = OpenAI()
+try:
+    pc = Pinecone(api_key=PINECONE_API_KEY)
+    client = OpenAI()
 
-index = pc.Index("mails") # server index
-rag_agent = RagAgent(index)
-pinecone_utility = PineconeUtility(index)    
+    index = pc.Index("mails") # server index
+    rag_agent = RagAgent(index)
+    pinecone_utility = PineconeUtility(index)    
 
-K_MAILS_TO_RETURN = 10
+    K_MAILS_TO_RETURN = 10
 
-if "user_email" in st.session_state and st.session_state.user_email is not None:
-    st.title(f"Hello {st.session_state.user_email}")
-else:
-    st.title("Welcome to the Email Assistant")
+    if "user_email" in st.session_state and st.session_state.user_email is not None:
+        st.title(f"Hello {st.session_state.user_email}")
+    else:
+        st.title("Welcome to the Email Assistant")
 
-if "creds" not in st.session_state:
-  st.session_state.creds = None
+    if "creds" not in st.session_state:
+        st.session_state.creds = None
 
-if "user_email" not in st.session_state:
-    st.session_state.user_email = None
+    if "user_email" not in st.session_state:
+        st.session_state.user_email = None
 
-if "most_relevant_mails" not in st.session_state:
-  st.session_state.most_relevant_mails = None
+    if "most_relevant_mails" not in st.session_state:
+        st.session_state.most_relevant_mails = None
 
-if "selected_mail" not in st.session_state:
-    st.session_state.selected_mail = None
+    if "selected_mail" not in st.session_state:
+        st.session_state.selected_mail = None
 
-if "flow" not in st.session_state:
-    st.session_state.flow = None
+    if "flow" not in st.session_state:
+        st.session_state.flow = None
 
-# Logout function
-def logout(is_from_login_func=False):
-    """Logs the user out by deleting the token and clearing session data."""
-    st.query_params.clear()
+    # Logout function
+    def logout(is_from_login_func=False):
+        """Logs the user out by deleting the token and clearing session data."""
+        st.query_params.clear()
 
-    st.session_state.user_email = None
-    st.session_state.creds = None
+        st.session_state.user_email = None
+        st.session_state.creds = None
 
-    if os.path.exists("token.json"):
-        os.remove("token.json")
-    if not is_from_login_func: st.success("Logged out successfully!")
+        if os.path.exists("token.json"):
+            os.remove("token.json")
+        if not is_from_login_func: st.success("Logged out successfully!")
 
-def login():
-    logout(is_from_login_func=True) # ensure clean slate before logging in
-    authorize_gmail_api()
+    def login():
+        logout(is_from_login_func=True) # ensure clean slate before logging in
+        authorize_gmail_api()
 
-if st.query_params.get('code', None):
-    authenticate_user()
+    if st.query_params.get('code', None):
+        authenticate_user()
 
-if st.button("Login"):
-    login()
+    if st.button("Login"):
+        login()
 
-if st.button("Logout"):
-    logout()
-    st.rerun()
+    if st.button("Logout"):
+        logout()
+        st.rerun()
 
-if st.button("Upload mail contents"):
-    st.info("Uploading emails...")
-    result_boolean = pinecone_utility.upload_email_content(index, user_emails=[st.session_state.user_email], sheet_url=st.secrets["GOOGLE_SHEET_URL"])
-    if result_boolean: st.success("Emails uploaded successfully")
+    if st.button("Upload mail contents"):
+        st.info("Uploading emails...")
+        result_boolean = pinecone_utility.upload_email_content(index, user_emails=[st.session_state.user_email], sheet_url=st.secrets["GOOGLE_SHEET_URL"])
+        if result_boolean: st.success("Emails uploaded successfully")
 
-st.write("## Query for specific emails (returns specific emails you are looking for)")
-prompt = st.text_input("Enter what emails you are looking for")
+    st.write("## Query for specific emails (returns specific emails you are looking for)")
+    prompt = st.text_input("Enter what emails you are looking for")
 
-col1, col2 = st.columns([1, 1])
-with col1:
-    if st.button("Get specific mails by content"):
-        if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
-        elif prompt == "": st.error("Please enter a valid query")
-        else:
-            st.session_state.rag_response = None
-            mails = rag_agent.find_most_relevant_emails(prompt, top_k=K_MAILS_TO_RETURN)
-            if (mails and len(mails) > 0):
-                st.session_state.most_relevant_mails = mails
-                st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
-                st.session_state.selected_mail_index = 0
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Get specific mails by content"):
+            if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
+            elif prompt == "": st.error("Please enter a valid query")
+            else:
+                st.session_state.rag_response = None
+                mails = rag_agent.find_most_relevant_emails(prompt, top_k=K_MAILS_TO_RETURN)
+                if (mails and len(mails) > 0):
+                    st.session_state.most_relevant_mails = mails
+                    st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
+                    st.session_state.selected_mail_index = 0
 
-                st.rerun()
-with col2:
-    if st.button("Ask general questions regarding emails"):
-        if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
-        elif prompt == "": st.error("Please enter a valid query")
-        else:
-            response_text, mails = rag_agent.run_rag(prompt, K_MAILS_TO_RETURN)
-            if (response_text and len(response_text) > 0 and mails and len(mails) > 0):
-                st.session_state.rag_response = response_text
-                st.session_state.most_relevant_mails = mails
-                st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
-                st.session_state.selected_mail_index = 0
+                    st.rerun()
+    with col2:
+        if st.button("Ask general questions regarding emails"):
+            if st.session_state.creds is None or st.session_state.user_email is None: st.error("Please login first")
+            elif prompt == "": st.error("Please enter a valid query")
+            else:
+                response_text, mails = rag_agent.run_rag(prompt, K_MAILS_TO_RETURN)
+                if (response_text and len(response_text) > 0 and mails and len(mails) > 0):
+                    st.session_state.rag_response = response_text
+                    st.session_state.most_relevant_mails = mails
+                    st.session_state.selected_mail = mails[0] # select the first mail by default (most similar)
+                    st.session_state.selected_mail_index = 0
 
-                st.rerun()
+                    st.rerun()
+except Exception as e:
+    st.error(f"An error occurred: {e}")
+    logger.error(f"An error occurred: {e}")
                 
 
 
