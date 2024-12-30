@@ -130,3 +130,33 @@ def authenticate_user():
             st.session_state.user_email = user_email
             st.rerun()
     else: st.error("Could not log in user")
+def switch_account(selected_email):
+    """
+    Switch to the selected Gmail account.
+
+    Args:
+        selected_email (str): The email address of the account to switch to.
+
+    Returns:
+        None
+    """
+    if selected_email in st.session_state.tokens:
+        st.session_state.creds = st.session_state.tokens[selected_email]
+        st.session_state.user_email = selected_email
+    else:
+        st.error("Account not authorized. Please log in.")
+
+def store_token(email, creds):
+    """
+    Store the OAuth token for a Gmail account.
+
+    Args:
+        email (str): The email address of the account.
+        creds: The OAuth credentials.
+
+    Returns:
+        None
+    """
+    if "tokens" not in st.session_state:
+        st.session_state.tokens = {}
+    st.session_state.tokens[email] = creds

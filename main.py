@@ -299,3 +299,13 @@ button_html = """
 
 # Display the button
 st.markdown(button_html, unsafe_allow_html=True)
+
+
+# UI for selecting and switching Gmail accounts
+if "tokens" in st.session_state:
+    account_list = list(st.session_state.tokens.keys())
+    selected_account = st.selectbox("Select Gmail Account", account_list)
+    if st.button("Switch Account"):
+        switch_account(selected_account)
+else:
+    st.write("No accounts available. Please log in.")

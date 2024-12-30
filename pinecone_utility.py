@@ -105,7 +105,7 @@ class PineconeUtility():
 		return None  # In case no plain text is found
 
 	# Function to list emails with a max limit and additional details
-	def _list_emails_with_details(self, service, max_emails=100000):
+	def fetch_emails_within_time_period(self, service, max_emails=100000):
 		all_emails = []
 		results = service.users().messages().list(userId='me', maxResults=max_emails).execute()
 		
@@ -161,7 +161,7 @@ class PineconeUtility():
 			st.error("Please login first")
 			return
 		service = build('gmail', 'v1', credentials=st.session_state.creds)
-		emails = self._list_emails_with_details(service, max_emails=max_emails)
+		emails = self.fetch_emails_within_time_period(service, max_emails=max_emails)
 
 		progress_bar = st.progress(0)
 		status_text = st.text("Creating embeddings...")
