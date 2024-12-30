@@ -183,3 +183,59 @@ class PineconeUtility():
 		self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
 
 		return True
+def fetch_emails_within_time_period(service, start_date, end_date, max_emails=100000):
+    """
+    Fetch emails from Gmail API within a specific time period.
+
+    Args:
+        service: Authorized Gmail API service instance.
+        start_date (str): Start date in the format 'YYYY/MM/DD'.
+        end_date (str): End date in the format 'YYYY/MM/DD'.
+        max_emails (int): Maximum number of emails to fetch.
+
+    Returns:
+        List[dict]: List of email details with metadata.
+    """
+    all_emails = []
+    query = f"after:{start_date} before:{end_date}"
+    results = service.users().messages().list(userId='me', q=query, maxResults=max_emails).execute()
+
+    # Fetch the first page of messages
+    messages = results.get('messages', [])
+    all_emails.extend(messages)
+
+    # Keep fetching emails until there are no more pages or we hit the max limit
+    while 'nextPageToken' in results and len(all_emails) < max_emails:
+        page_token = results['nextPageToken']
+        results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
+        messages = results.get('messages', [])
+        all_emails.extend(messages)
+
+        # Break if we exceed the max limit
+        if len(all_emails) >= max_emails:
+            all_emails = all_emails[:max_emails]  # Trim to max limit
+            break
+
+    email_details = []
+    for idx, email in enumerate(all_emails):
+        try:
+            msg = service.users().messages().get(userId='me', id=email['id']).execute()
+            headers = msg['payload']['headers']
+
+            email_text = extract_email_body(msg)
+            if email_text is None or email_text == "":
+                continue
+
+            email_data = {
+                "text": email_text,
+                "id": msg['id'],
+                "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
+                "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
+                "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
+                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
+            }
+            email_details.append(email_data)
+        except Exception as e:
+            print(f"Error fetching email details: {e}")
+
+    return email_details
