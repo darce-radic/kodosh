@@ -16,6 +16,7 @@ from rag_agent import RagAgent
 from pinecone_utility import PineconeUtility
 from utility import authorize_gmail_api, authenticate_user
 from safe_constants import SCOPES
+from datetime import date
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,10 +63,10 @@ try:
         st.session_state.selected_mail_index = 0
 
     if "start_date" not in st.session_state:
-        st.session_state.start_date = None
+        st.session_state.start_date = date.today()
 
     if "end_date" not in st.session_state:
-        st.session_state.end_date = None
+        st.session_state.end_date = date.today()
 
     # Logout function
     def logout(is_from_login_func=False):
@@ -131,8 +132,8 @@ try:
         # Streamlit UI for specifying date range and multiple email accounts
         st.write("Specify the date range for fetching emails:")
 
-        start_date = st.date_input("Start date", key='start_date')
-        end_date = st.date_input("End date", key='end_date')
+        start_date = st.date_input("Start date", value=st.session_state.start_date, key='start_date')
+        end_date = st.date_input("End date", value=st.session_state.end_date, key='end_date')
 
         st.write("Specify the email accounts (comma-separated):")
         user_emails_input = st.text_input("Email accounts", key='user_emails')
@@ -307,8 +308,8 @@ try:
 
         # UI for selecting date range
         st.sidebar.header("Email Query Settings")
-        start_date = st.sidebar.date_input("Start Date")
-        end_date = st.sidebar.date_input("End Date")
+        start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date)
+        end_date = st.sidebar.date_input("End Date", value=st.session_state.end_date)
 
         if start_date and end_date:
             if start_date > end_date:
@@ -365,9 +366,6 @@ try:
 except Exception as e:
     st.error(f"An error occurred: {e}")
     logger.error(f"An error occurred: {e}")
-                
-
-
 
 # --------------------------------------------------------
 # General code
@@ -436,9 +434,6 @@ def render_mail(selected_mail):
     </div>
     """, unsafe_allow_html=True)
 
-
-
-
 def update_selected_mail():
     st.session_state.selected_mail = st.session_state.most_relevant_mails[st.session_state.selected_mail_index]
 
@@ -464,7 +459,6 @@ def render_most_relevant_mails():
     with col_mid:
         st.write(f"Email {st.session_state.selected_mail_index + 1}/{len(st.session_state.most_relevant_mails)}")
 
-
     # Update selected mail if not already set
     if "selected_mail" not in st.session_state:
         update_selected_mail()
@@ -485,20 +479,15 @@ if st.session_state.rag_response:
 
     # TODO render emails used to answer the question
 
-
 # --------------------------------------------------------
 # Display the most relevant emails
 # --------------------------------------------------------
-
 
 if st.session_state.most_relevant_mails is not None:
     st.write("## Most relevant emails")
     st.write(f"Emails listed in descending order of relevance for query: '{prompt}'")
 
     render_most_relevant_mails()
-
-
-
 
 # Custom HTML for a green button
 button_html = """
@@ -527,7 +516,6 @@ button_html = """
 # Display the button
 st.markdown(button_html, unsafe_allow_html=True)
 
-
 # UI for selecting and switching Gmail accounts
 if "tokens" in st.session_state:
     account_list = list(st.session_state.tokens.keys())
@@ -537,11 +525,10 @@ if "tokens" in st.session_state:
 else:
     st.write("No accounts available. Please log in.")
 
-
 # UI for selecting date range
 st.sidebar.header("Email Query Settings")
-start_date = st.sidebar.date_input("Start Date")
-end_date = st.sidebar.date_input("End Date")
+start_date = st.sidebar.date_input("Start Date", value=st.session_state.start_date)
+end_date = st.sidebar.date_input("End Date", value=st.session_state.end_date)
 
 if start_date and end_date:
     if start_date > end_date:
@@ -550,14 +537,12 @@ if start_date and end_date:
         st.session_state.start_date = start_date.strftime('%Y/%m/%d')
         st.session_state.end_date = end_date.strftime('%Y/%m/%d')
 
-
 # Page for listing content from the Google Sheet
 if st.sidebar.button("View Subscriptions"):
     st.title("Subscriptions from Google Sheet")
     sheet_url = 'https://docs.google.com/spreadsheets/d/1juwBy3RK3XNeY6RWkPwqocJmDc4sb0QGetRdQuRA4Eg/export?format=csv'
     subscriptions_df = pd.read_csv(sheet_url)
     st.dataframe(subscriptions_df)
-
 
 # Page for extracting and displaying subscriptions from Pinecone index
 if st.sidebar.button("Extract Subscriptions"):
