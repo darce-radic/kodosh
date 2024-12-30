@@ -131,6 +131,12 @@ try:
         # Streamlit UI for specifying date range and multiple email accounts
         st.write("Specify the date range for fetching emails:")
 
+        # Ensure session state is set before creating the widget
+        if "start_date" not in st.session_state:
+            st.session_state.start_date = date.today() - timedelta(days=365)
+        if "end_date" not in st.session_state:
+            st.session_state.end_date = date.today()
+
         start_date = st.date_input("Start date", value=st.session_state.start_date, key='start_date')
         end_date = st.date_input("End date", value=st.session_state.end_date, key='end_date')
 
