@@ -26,16 +26,16 @@ class PineconeUtility():
     def _initialize_gspread(self):
         try:
             credentials = {
-                "type": os.getenv("GSPREAD_TYPE"),
-                "project_id": os.getenv("GSPREAD_PROJECT_ID"),
-                "private_key_id": os.getenv("GSPREAD_PRIVATE_KEY_ID"),
-                "private_key": os.getenv("GSPREAD_PRIVATE_KEY").replace('\\n', '\n'),
-                "client_email": os.getenv("GSPREAD_CLIENT_EMAIL"),
-                "client_id": os.getenv("GSPREAD_CLIENT_ID"),
-                "auth_uri": os.getenv("GSPREAD_AUTH_URI"),
-                "token_uri": os.getenv("GSPREAD_TOKEN_URI"),
-                "auth_provider_x509_cert_url": os.getenv("GSPREAD_AUTH_PROVIDER_X509_CERT_URL"),
-                "client_x509_cert_url": os.getenv("GSPREAD_CLIENT_X509_CERT_URL")
+                "type": "service_account",
+                "project_id": "solarprojectss",
+                "private_key_id": "c486ef1b0896fd5d93e487b9d9710e1b2ca0674b",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDMqDUPffEV6Yw/\ni7jPHylBST9lMPekzTZBUmei56Njq6ZLcjkattsGtFPtoiHS9HgH627ujkWCumvH\nXeMPKIuiSUWuLRW6xNrQcPp2xxqnLnYIhsOfLv3fMMRr/KtjqlmdKOuf9U1Gih9R\n2nyJbQbfhL5+ZpDc1Dr4F1c30IZOnP3lx/njkq0Td4tIJlO6do1G2pIaWQatfh6a\n4XkaDu3LuRDV0JlombUoD1RN+407dJ9AWkoNediPU1n187oeWg6d5Vf77Xw9yUe9\njv8Bp1mzQ/j0oBW4DjbFmdyCInZWbFPavpWq7UuZN7lIWoIoO9nF1edIKmdQOJlY\ncZ27PzENAgMBAAECgf8f+ihQQ11oDxXa1/oIYtYPXWKKbRxEo8vWaQnIamkdKbTS\nFQbXJbsTURnMB4lBbPFUS3UJ0TELPBWbERBpTeyDbu90R5cdl6SY7Q41gOapOJk4\nu9XVCYKhXP1T4ibla7iU1c/7LljkrLA4Getbja2FPziEh4Ia/w43tW3rSqmxno5Y\nbdojFTVKgPv9xp39CJpVkyG7BDhxV/oXD1AU4cC+APXpfB00RX4prqJXh1EfX1DH\nuAYVGK2HBEEb6VwF6W8f4idrukdO6WIob2Nh2XDUZgIgsXRsxhE/6xfPlmG1jhO2\nSRDocWqXNOkJBbVp9o0K01PxkXxxIuVNRN2SeAECgYEA9ZjjUAhJSVQyuwwR3KX4\nmFFNcAlMfLCDMLoLuooGGSuCXUuzJE6HSmh59BEN8CB1t1hV+UdCz8pkqQZeCrBU\n+uvdnpfWq6+3ystkNRzTbstzB8maSFWxH48SBjWhVFWyWEUHEKIzAAD2mrLKCQtP\nMezI1o0bkqVgtlJL53gD2c0CgYEA1VNjZjuz+vRP2d2dXv0gkprQjOmzQKYrcYCZ\nkNuWsKHFZ0dDsLE0WytDea8WMonI5u4yXtilXmB841TsSXKu83Zl8Qs/I4Zzdhm6\nfkNOpo8+x2aIeW2zikNsCztZgBq7WeAyijJFBPqqtqLLtlI5rjakS87sFJoPU2t+\nPa3kdEECgYEAs/P2eunXaRd8pHlPjTE/WbwY1YK6vJJJTibD+Uaw+ThcKSgSdwPj\nNa4fzanBYLUoC9N6C1Efr0lJQGAeAA779W9lz5LKBLqYHMuy/QfGFGSWQJqDpYTE\nZ69ZMZuSPk0chHjvmEyAufv6tZdTWhUjTh2Fe0+haG4s0uqyG0Rg7fECgYEAhpsU\niGi5u2s3i4hsCYj9aaRoXdIE+pEfroHv5Fi67/9TuURdcPuPxss4y2pwPjl03EqG\n3BQl3LRTeXqXkgzcWeFml795+qeW6Xl4lL1RvoV6noWTLdPLyz2ZykiLw+qaNy7h\nlRP9OxQUbiOxGP0vSj9OUkth6eoAK6oTQUYddkECgYEAu3q1qRg6ShNtvCn0swZs\npD7yX3hw+3FkOGkBkMRFfEvifSuLFvAE+Gy4etwdS1MUIzcBkFDfF55Y+9A5B4UW\ng0GaIPsQv7Yi4kX7Yfb84wRsaxQiDQOkDBfATy5vn5qRbizoY3bHaC7RmYNMxVzm\nB4hSvxL5gugQY8FN/EG8VKI=\n-----END PRIVATE KEY-----\n",
+                "client_email": "ghlconnect@solarprojectss.iam.gserviceaccount.com",
+                "client_id": "113910955082449298707",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ghlconnect%40solarprojectss.iam.gserviceaccount.com"
             }
             return gspread.service_account_from_dict(credentials)
         except Exception as e:
