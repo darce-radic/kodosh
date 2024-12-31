@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import logging
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
@@ -57,7 +57,7 @@ try:
         st.session_state.selected_mail_index = 0
 
     if "start_date" not in st.session_state:
-        st.session_state.start_date = date.today() - timedelta(days=365)
+        st.session_state.start_date = datetime(2024, 1, 1).date()
 
     if "end_date" not in st.session_state:
         st.session_state.end_date = date.today()
@@ -76,7 +76,7 @@ try:
         logout(is_from_login_func=True)
         authorize_gmail_api()
 
-    if st.experimental_get_query_params().get('code', None):
+    if st.query_params.get('code', [None])[0]:
         authenticate_user()
 
     if not st.session_state.creds or not st.session_state.user_email:
