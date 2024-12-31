@@ -79,8 +79,11 @@ try:
     if st.query_params.get('code', None):
         authenticate_user()
 
-    if st.button("Login"):
-        login()
+    if not st.session_state.creds or not st.session_state.user_email:
+        st.warning("Please log in to continue.")
+        if st.button("Login"):
+            login()
+        st.stop()
 
     if st.button("Logout"):
         logout()
