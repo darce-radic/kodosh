@@ -95,7 +95,7 @@ def authenticate_user():
                     store_token(email, creds)
                     st.session_state.creds = creds
                     st.session_state.user_email = email
-                    st.experimental_set_query_params()
+                    st.query_params.clear()
                     st.success("Logged in successfully!")
                 else:
                     st.error("Failed to retrieve user email.")

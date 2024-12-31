@@ -63,7 +63,7 @@ try:
         st.session_state.end_date = date.today()
 
     def logout(is_from_login_func=False):
-        st.experimental_set_query_params()
+        st.query_params.clear()
         st.session_state.user_email = None
         st.session_state.creds = None
 
@@ -182,13 +182,13 @@ try:
             extract_subscriptions(pinecone_utility)
 
         if st.sidebar.button("View Potential Subscriptions"):
-            st.experimental_set_query_params(page="subscriptions_page")
+            st.query_params.update(page="subscriptions_page")
 
         if st.sidebar.button("Manage Gmail Accounts"):
-            st.experimental_set_query_params(page="manage_accounts")
+            st.query_params.update(page="manage_accounts")
 
         if st.sidebar.button("Upload Bank CSV"):
-            st.experimental_set_query_params(page="upload_bank_csv")
+            st.query_params.update(page="upload_bank_csv")
 except Exception as e:
     st.error(f"An error occurred: {e}")
     logger.error(f"An error occurred: {e}")
