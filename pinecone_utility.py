@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class PineconeUtility:
     def __init__(self, index) -> None:
         try:
-            pass
             self.rag_agent = RagAgent(index)
             self.email_utility = EmailUtility()
         except Exception as e:
