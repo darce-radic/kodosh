@@ -1,8 +1,10 @@
 import base64
 import logging
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from tqdm.auto import tqdm
 import streamlit as st
+from datetime import datetime
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -13,59 +15,66 @@ class EmailUtility:
         pass
 
     def _get_email_body(self, msg):
-        logger.info("INSIDE GET MAIL")
-        if 'parts' in msg['payload']:
-            for part in msg['payload']['parts']:
+        try:
+            parts = msg['payload'].get('parts', [])
+            if not parts:
+                return msg['payload'].get('body', {}).get('data', '')
+
+            body = ''
+            for part in parts:
                 if part['mimeType'] == 'text/plain':
-                    body = part['body']['data']
-                    return base64.urlsafe_b64decode(body).decode('utf-8')
-        else:
-            body = msg['payload']['body'].get('data')
-            if body:
-                return base64.urlsafe_b64decode(body).decode('utf-8')
-        return None
+                    body = part['body'].get('data', '')
+                    break
+                elif part['mimeType'] == 'text/html':
+                    body = part['body'].get('data', '')
+            return body
+        except KeyError as e:
+            logger.error(f"Error fetching email body: {e}")
+            return ''
 
     def fetch_emails_within_time_period(self, service, start_date, end_date):
         try:
-            logger.info("INSIDE GET MAIL IN PERIOD")
-            all_emails = []
-            query = f"after:{start_date} before:{end_date}"
+            # Convert dates to seconds since epoch
+            start_timestamp = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp())
+            end_timestamp = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp())
+
+            query = f"after:{start_timestamp} before:{end_timestamp}"
             results = service.users().messages().list(userId='me', q=query).execute()
             messages = results.get('messages', [])
-            all_emails.extend(messages)
 
-            while 'nextPageToken' in results:
-                page_token = results['nextPageToken']
-                results = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
-                messages = results.get('messages', [])
-                all_emails.extend(messages)
+            emails = []
+            for message in messages:
+                msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                email_data = self._extract_email_data(msg)
+                if email_data:
+                    emails.append(email_data)
 
-            email_details = []
-            for idx, email in enumerate(all_emails):
-                try:
-                    msg = service.users().messages().get(userId='me', id=email['id']).execute()
-                    headers = msg['payload']['headers']
-
-                    email_text = self._get_email_body(msg)
-                    if email_text is None or email_text == "":
-                        continue
-                    
-                    logger.info("INSIDE GET MAIL DETaILS")
-
-                    email_data = {
-                        "text": email_text,
-                        "id": msg['id'],
-                        "date": next((header['value'] for header in headers if header['name'] == 'Date'), None),
-                        "from": next((header['value'] for header in headers if header['name'] == 'From'), None),
-                        "subject": next((header['value'] for header in headers if header['name'] == 'Subject'), None),
-                        "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
-                    }
-                    email_details.append(email_data)
-                except Exception as e:
-                    logger.error(f"Error fetching email details: {e}")
-                    st.error("Failed to fetch email details. Please try again.")
-
-            return email_details
-        except Exception as e:
-            logger.error(f"Error fetching emails within time period: {e}")
+            return emails
+        except HttpError as error:
+            logger.error(f"An error occurred: {error}")
             st.error("Failed to fetch emails. Please try again.")
+            return []
+
+    def _extract_email_data(self, msg):
+        try:
+            headers = msg['payload']['headers']
+            email_data = {
+                'id': msg['id'],
+                'threadId': msg['threadId'],
+                'labelIds': msg.get('labelIds', []),
+                'snippet': msg.get('snippet', ''),
+                'historyId': msg.get('historyId', ''),
+                'internalDate': msg.get('internalDate', ''),
+                'sizeEstimate': msg.get('sizeEstimate', 0),
+                'raw': msg.get('raw', ''),
+                'payload': msg.get('payload', {}),
+                'parts': msg.get('payload', {}).get('parts', []),
+                'mimeType': msg.get('payload', {}).get('mimeType', ''),
+                'filename': msg.get('payload', {}).get('filename', ''),
+                'headers': headers,
+                'text': self._get_email_body(msg)
+            }
+            return email_data
+        except KeyError as e:
+            logger.error(f"Error fetching email details: {e}")
+            return None
