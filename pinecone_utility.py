@@ -49,7 +49,8 @@ class PineconeUtility:
 
     def _upsert_data_to_pinecone(self, index, data_with_metadata: list[dict]) -> None:
         try:
-            index.upsert(vectors=data_with_metadata)
+            vectors = [{"id": item["id"], "values": item["values"], "metadata": item["metadata"]} for item in data_with_metadata]
+            index.upsert(vectors=vectors)
         except Exception as e:
             logger.error(f"Error upserting data to Pinecone: {e}")
             st.error("Failed to upsert data to Pinecone. Please try again.")

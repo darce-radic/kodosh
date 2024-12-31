@@ -18,7 +18,7 @@ PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
-openai_client = OpenAI()
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 class RagAgent:
     def __init__(self, index):
