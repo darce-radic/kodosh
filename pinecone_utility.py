@@ -7,6 +7,7 @@ from rag_agent import RagAgent
 from email_utility import EmailUtility
 from googleapiclient.discovery import build
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -101,12 +102,16 @@ class PineconeUtility:
                 st.error('Start date and end date must be specified.')
                 return False
 
+            # Convert dates to strings
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+
             service = build('gmail', 'v1', credentials=st.session_state.creds)
 
             all_emails = []
             for user_email in user_emails:
                 logger.info("INSIDE GET MAIL UTILITY")
-                emails = self.email_utility.fetch_emails_within_time_period(service, start_date, end_date)
+                emails = self.email_utility.fetch_emails_within_time_period(service, start_date_str, end_date_str)
                 all_emails.extend(emails)
 
             total_emails = len(all_emails)
