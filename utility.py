@@ -124,3 +124,4 @@ def store_token(email, creds):
     except Exception as e:
         logger.error(f"Error storing token: {e}")
         st.error("Failed to store token. Please try again.")
+        
