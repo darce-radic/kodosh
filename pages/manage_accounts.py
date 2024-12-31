@@ -8,7 +8,7 @@ if "tokens" in st.session_state:
     st.write("### Authorized Accounts")
     account_list = list(st.session_state.tokens.keys())
     for account in account_list:
-        st.write(f"- {account}")
+        st.write(account)
 else:
     st.write("No accounts available. Please log in.")
 
@@ -24,7 +24,10 @@ if "tokens" in st.session_state:
 
 # Remove an account
 if "tokens" in st.session_state:
-    account_to_remove = st.selectbox("Select Gmail Account to Remove", account_list)
+    selected_account_to_remove = st.selectbox("Select Gmail Account to Remove", account_list)
     if st.button("Remove Account"):
-        del st.session_state.tokens[account_to_remove]
-        st.success(f"Account {account_to_remove} removed successfully.")
+        if selected_account_to_remove in st.session_state.tokens:
+            del st.session_state.tokens[selected_account_to_remove]
+            st.success(f"Account {selected_account_to_remove} removed successfully!")
+        else:
+            st.error("Account not found.")

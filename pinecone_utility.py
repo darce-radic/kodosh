@@ -125,16 +125,9 @@ st.write("Specify the date range for fetching emails:")
 start_date = st.date_input("Start date", key='start_date')
 end_date = st.date_input("End date", key='end_date')
 
-st.write("Specify the email accounts (comma-separated):")
-user_emails_input = st.text_input("Email accounts", key='user_emails')
-user_emails = [email.strip() for email in user_emails_input.split(",")]
-
-st.write("Specify the Google Sheets URL to store subscriptions:")
-sheet_url = st.text_input("Google Sheets URL", key='sheet_url')
-
 if st.button("Upload Emails"):
     pinecone_utility = PineconeUtility(index="your_index_name")
-    if pinecone_utility.upload_email_content(index="your_index_name", user_emails=user_emails, sheet_url=sheet_url):
+    if pinecone_utility.upload_email_content(index="your_index_name", user_emails=[st.session_state.user_email], sheet_url=st.session_state.sheet_url):
         st.success("Emails uploaded and subscriptions stored successfully!")
     else:
         st.error("Failed to upload emails and store subscriptions.")
