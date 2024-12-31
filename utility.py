@@ -89,28 +89,32 @@ def authenticate_user():
     auth_code = st.query_params.get('code', [None])[0]
     if auth_code:
         logger.info("INSIDE CODE")
-        # make a new flow to fetch tokens
-        flow = InstalledAppFlow.from_client_config(
-                CLIENT_CONFIG, SCOPES, 
-            )
-        flow.redirect_uri = MAIN_REDIRECT_URI
-        flow.fetch_token(code=auth_code)
-        st.experimental_set_query_params()
-        creds = flow.credentials
-        if creds:
-            st.session_state.creds = creds
-            # Save the credentials for future use
-            with open('token.json', 'w') as token_file:
-                token_file.write(creds.to_json())
-            st.success("Authorization successful! Credentials have been saved.")
+        try:
+            # make a new flow to fetch tokens
+            flow = InstalledAppFlow.from_client_config(
+                    CLIENT_CONFIG, SCOPES, 
+                )
+            flow.redirect_uri = MAIN_REDIRECT_URI
+            flow.fetch_token(code=auth_code)
+            st.experimental_set_query_params()
+            creds = flow.credentials
+            if creds:
+                st.session_state.creds = creds
+                # Save the credentials for future use
+                with open('token.json', 'w') as token_file:
+                    token_file.write(creds.to_json())
+                st.success("Authorization successful! Credentials have been saved.")
 
-            # Save the credentials for the next run
-            with open("token.json", "w") as token: 
-                token.write(creds.to_json())
-            # get user email
-            user_email = get_user_info(creds)
-            st.session_state.user_email = user_email
-            st.experimental_rerun()
+                # Save the credentials for the next run
+                with open("token.json", "w") as token: 
+                    token.write(creds.to_json())
+                # get user email
+                user_email = get_user_info(creds)
+                st.session_state.user_email = user_email
+                st.experimental_rerun()
+        except Exception as e:
+            logger.error(f"Error authenticating user: {e}")
+            st.error("Failed to authenticate user. Please try again.")
     else:
         st.error("Could not log in user")
 
