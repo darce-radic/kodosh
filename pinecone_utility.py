@@ -28,34 +28,63 @@ class PineconeUtility:
         hash_obj.update(content.encode("utf-8"))
         return hash_obj.hexdigest()
 
-    def _combine_vector_and_text(self, documents: list, doc_embeddings: list[list[float]], user_email: str = None) -> list[dict]:
+    def _combine_vector_and_text(self, documents: list[any], doc_embeddings: list[list[float]], user_email: str = None) -> list[dict[str, any]]:
+        """
+        Process a list of documents along with their embeddings.
+
+        Args:
+        - documents (List[Any]): A list of documents (strings or other types).
+        - doc_embeddings (List[List[float]]): A list of embeddings corresponding to the documents.
+
+        Returns:
+        - data_with_metadata (List[Dict[str, Any]]): A list of dictionaries, each containing an ID, embedding values, and metadata.
+        """
         data_with_metadata = []
+
         for doc, embedding in zip(documents, doc_embeddings):
             doc_text = doc["text"]
-            doc_date = doc.get("date")
-            doc_amount = doc.get("amount")
+            doc_date = doc["date"]
+            doc_sender = doc["from"]
+            doc_subject = doc["subject"]
+            doc_email_link = doc["email_link"]
 
             if doc_text is None or doc_text == "":
                 continue
 
+            # Generate a unique ID based on the text content
             doc_id = self._generate_short_id(doc_text)
+
+            # Create a data item dictionary
             data_item = {
                 "id": doc_id,
                 "values": embedding,
                 "metadata": {
                     "user_email": user_email,
-                    "text": doc_text,
+                    "text": doc_text[:1000],  # Truncate text to reduce metadata size
                     "date": doc_date if doc_date is not None else "",
-                    "amount": doc_amount if doc_amount is not None else ""
+                    "sender": doc_sender,
+                    "subject": doc_subject,
+                    "email_link": doc_email_link
                 },
             }
+
+            # Append the data item to the list
             data_with_metadata.append(data_item)
+
         return data_with_metadata
 
-    def _upsert_data_to_pinecone(self, index, data_with_metadata: list[dict]) -> None:
+    def _upsert_data_to_pinecone(self, index, data_with_metadata: list[dict[str, any]]) -> None:
+        """
+        Upsert data with metadata into a Pinecone index.
+
+        Args:
+        - data_with_metadata (List[Dict[str, Any]]): A list of dictionaries, each containing data with metadata.
+
+        Returns:
+        - None
+        """
         try:
-            vectors = [{"id": item["id"], "values": item["values"], "metadata": item["metadata"]} for item in data_with_metadata]
-            index.upsert(vectors=vectors)
+            index.upsert(vectors=data_with_metadata)
         except Exception as e:
             logger.error(f"Error upserting data to Pinecone: {e}")
             st.error("Failed to upsert data to Pinecone. Please try again.")
