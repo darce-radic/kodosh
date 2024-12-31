@@ -1,5 +1,5 @@
 import streamlit as st
-import os  # Add this import statement
+import os
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -19,7 +19,7 @@ PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
-openai_client = OpenAI()
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 class RagAgent:
     def __init__(self, index):
