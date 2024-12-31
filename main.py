@@ -38,6 +38,11 @@ try:
     else:
         st.title("Welcome to the Email Assistant")
 
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    from safe_constants import SCOPES
+
     if "creds" not in st.session_state:
         st.session_state.creds = None
 
@@ -66,6 +71,7 @@ try:
         st.session_state.end_date = date.today()
 
     def logout(is_from_login_func=False):
+        logger.debug("INSIDE LOGOUT")
         st.query_params.clear()
         st.session_state.user_email = None
         st.session_state.creds = None
@@ -160,6 +166,7 @@ try:
         st.markdown(button_html, unsafe_allow_html=True)
 
         if "tokens" in st.session_state:
+            logger.debug("INSIDE TOKEN MAIN")
             account_list = list(st.session_state.tokens.keys())
             selected_account = st.selectbox("Select Gmail Account", account_list)
             if st.button("Switch Account"):
