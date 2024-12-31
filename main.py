@@ -8,7 +8,7 @@ from pinecone import Pinecone
 from rag_agent import RagAgent  # Ensure this path is correct
 from pinecone_utility import PineconeUtility  # Ensure this path is correct
 from utility import authorize_gmail_api, authenticate_user, switch_account, get_user_info
-from safe_constants import SCOPES
+from safe_constants import SCOPES  # Ensure this module is available
 from render_mail import render_most_relevant_mails
 from subscriptions import view_subscriptions, extract_subscriptions
 import mitosheet
