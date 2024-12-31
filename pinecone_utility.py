@@ -63,7 +63,7 @@ class PineconeUtility:
                 continue
             try:
                 embeddings.append(self.rag_agent.get_embedding(email["text"]))
-                subscriptions = self._identify_subscriptions(email["text"])
+                subscriptions = self.rag_agent._identify_subscriptions(email["text"])
                 all_subscriptions.extend(subscriptions)
             except Exception as e:
                 logger.error(f"Error processing email: {e}")

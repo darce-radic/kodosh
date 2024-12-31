@@ -18,16 +18,28 @@ PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = OpenAI()
 
 class RagAgent:
     def __init__(self, index):
         self.index = index
-        self.llm = ChatOpenAI(api_key=OPENAI_API_KEY)
+        self.llm = ChatOpenAI(
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            model_name="gpt-4o-mini",
+            temperature=0.0
+        )
+
+    def _query_pinecone_index(self, query: str, top_k: int):
+        try:
+            response = self.index.query(query, top_k=top_k)
+            return response
+        except Exception as e:
+            st.error(f"Error querying Pinecone index: {e}")
+            return None
 
     def find_most_relevant_emails(self, query, top_k=2):
-        query_response = self.index.query(query, top_k=top_k)
-        if len(query_response["matches"]) == 0:
+        query_response = self._query_pinecone_index(query, top_k)
+        if query_response is None or len(query_response["matches"]) == 0:
             st.error("No emails found. Please upload emails first")
             return None
         return query_response
@@ -56,5 +68,10 @@ class RagAgent:
         return response.content, mails
 
     def get_embedding(self, text: str) -> list[float]:
-        response = openai_client.Embedding.create(input=text, model="text-embedding-ada-002")
+        response = openai_client.Embedding.create(input=[text], model="text-embedding-ada-002")
         return response['data'][0]['embedding']
+
+    def _identify_subscriptions(self, text: str) -> list[str]:
+        # Implement the logic to identify subscriptions from the text
+        # This is a placeholder implementation
+        return ["subscription1", "subscription2"]
