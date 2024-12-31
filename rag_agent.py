@@ -69,8 +69,13 @@ class RagAgent:
         return response.content, mails
 
     def get_embedding(self, text: str) -> list[float]:
+        # Ensure the text length is within the allowed token limit
+        max_tokens = 8192
+        if len(text) > max_tokens:
+            text = text[:max_tokens]
+
         response = openai_client.embeddings.create(input=[text], model="text-embedding-ada-002")
-        return response['data'][0]['embedding']
+        return response.data[0].embedding
 
     def _identify_subscriptions(self, text: str) -> list[str]:
         # Implement the logic to identify subscriptions from the text
