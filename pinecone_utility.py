@@ -103,23 +103,6 @@ class PineconeUtility:
                 return False
 
             # Convert dates to strings
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            end_date_str = end_date.strftime("%Y-%m-%d")
-
-            service = build('gmail', 'v1', credentials=st.session_state.creds)
-
-            all_emails = []
-            for user_email in user_emails:
-                logger.info("INSIDE GET MAIL UTILITY")
-                emails = self.email_utility.fetch_emails_within_time_period(service, start_date_str, end_date_str)
-                all_emails.extend(emails)
-
-            total_emails = len(all_emails)
-            progress_bar = st.progress(0)
-            status_text = st.text("Creating embeddings...")
-
-            batch_size = 100
-            all_subscriptions = []
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
                 for i in range(0, total_emails, batch_size):
@@ -134,11 +117,12 @@ class PineconeUtility:
                         logger.error(f"Error in batch processing: {e}")
                         st.error("Failed to process batch. Please try again.")
 
-            self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
+            # Skip storing subscriptions in sheet for now
+            # self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
             return True
         except Exception as e:
             logger.error(f"Error uploading email content: {e}")
-            st.error("Failed to upload email content. Please try again.")
+            st.error(f"Failed to upload email content: {e}")
 
 # Streamlit UI for specifying date range and multiple email accounts
 st.title("Email Content Uploader")
@@ -149,6 +133,10 @@ end_date = st.date_input("End date", key='end_date')
 
 if st.button("Upload Emails"):
     pinecone_utility = PineconeUtility(index="your_index_name")
+    if pinecone_utility.upload_email_content(index="your_index_name", user_emails=[st.session_state.user_email], sheet_url=st.session_state.sheet_url):
+        st.success("Emails uploaded and subscriptions stored successfully!")
+    else:
+        st.error("Failed to upload emails and store subscriptions.")    pinecone_utility = PineconeUtility(index="your_index_name")
     if pinecone_utility.upload_email_content(index="your_index_name", user_emails=[st.session_state.user_email], sheet_url=st.session_state.sheet_url):
         st.success("Emails uploaded and subscriptions stored successfully!")
     else:

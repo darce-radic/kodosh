@@ -54,3 +54,7 @@ class RagAgent:
 
         response = self.llm.invoke(full_prompt)
         return response.content, mails
+
+    def get_embedding(self, text: str) -> list[float]:
+        response = self.llm.embed(text)
+        return response['embedding']
