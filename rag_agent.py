@@ -30,34 +30,64 @@ class RagAgent:
             temperature=0.0
         )
 
-    def _query_pinecone_index(self, query: str, top_k: int):
+    def _query_pinecone_index(self, query_embedding: list, top_k: int = 2, include_metadata: bool = True) -> dict[str, any]:
+        """
+        Query a Pinecone index.
+
+        Args:
+        - query_embedding (List[float]): List of query vectors.
+        - top_k (int): Number of nearest neighbors to retrieve (default: 2).
+        - include_metadata (bool): Whether to include metadata in the query response (default: True).
+
+        Returns:
+        - query_response (Dict[str, Any]): Query response containing nearest neighbors.
+        """
+        if st.session_state.user_email is None:
+            st.error("Please login first")
+            return
         try:
-            response = self.index.query(query, top_k=top_k)
-            return response
+            query_response = self.index.query(
+                vector=query_embedding, top_k=top_k, include_metadata=include_metadata, filter={"user_email": st.session_state.user_email}
+            )
+            if len(query_response["matches"]) == 0:
+                st.error("No emails found. Please upload emails first")
+                return
+            return query_response
         except Exception as e:
             st.error(f"Error querying Pinecone index: {e}")
             return None
 
-    def find_most_relevant_emails(self, query, top_k=2):
-        query_response = self._query_pinecone_index(query, top_k)
-        if query_response is None or len(query_response["matches"]) == 0:
-            st.error("No emails found. Please upload emails first")
-            return None
-        return query_response
+    def find_most_relevant_emails(self, query, top_k=2, include_metadata: bool = True):
+        query_embedding = self.get_embedding(query)
+        query_response = self._query_pinecone_index(query_embedding, top_k=top_k, include_metadata=include_metadata)
+        mails = self._extract_mail_metadata(query_response)
+        return mails
 
     def _extract_mail_metadata(self, response) -> Optional[str]:
+        """Extract data from mail objects to make a list of dictionaries with sender, date, subject, text."""
         if response is None:
             return None
         return [response["matches"][i]["metadata"] for i in range(len(response["matches"]))]
 
-    def _extract_text_from_query_response(self, query_response: dict) -> str:
+    def _extract_text_from_query_response(self, query_response: dict[str, any]) -> str:
+        """
+        Extract the text from the metadata in the query response to feed into LLM for response.
+
+        Args:
+        - query_response (Dict[str, Any]): Query response containing metadata.
+
+        Returns:
+        - text_answer (str): The extracted text from the query response.
+        """
         texts = [doc['metadata']['text'] for doc in query_response['matches']]
         return texts
 
     def run_rag(self, query, top_k=2):
+        """Run full RAG, so first embed query, then query Pinecone index, then extract text from response, then prompt GPT to answer question given context from Pinecone."""
         mails = self.find_most_relevant_emails(query, top_k=top_k)
         if mails is None:
             return None, None
+        # Extract all the information to text
         full_email_text = ""
         for mail in mails:
             sender, date, subject, text = mail["sender"], mail["date"], mail["subject"], mail["text"]
