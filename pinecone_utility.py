@@ -45,7 +45,7 @@ class PineconeUtility:
                 "metadata": {
                     "user_email": user_email,
                     "text": doc_text,
-                    "date": doc_date,
+                    "date": doc_date if doc_date is not None else "",
                     "amount": doc_amount if doc_amount is not None else ""
                 },
             }
