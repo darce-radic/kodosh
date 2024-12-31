@@ -42,7 +42,12 @@ class PineconeUtility:
             data_item = {
                 "id": doc_id,
                 "values": embedding,
-                "metadata": {"user_email": user_email, "text": doc_text, "date": doc_date, "amount": doc_amount},
+                "metadata": {
+                    "user_email": user_email,
+                    "text": doc_text,
+                    "date": doc_date,
+                    "amount": doc_amount if doc_amount is not None else ""
+                },
             }
             data_with_metadata.append(data_item)
         return data_with_metadata
