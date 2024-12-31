@@ -10,8 +10,10 @@ from safe_constants import SCOPES, MAIN_REDIRECT_URI, ALL_REDIRECT_URIS, ALL_JAV
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CLIENT_ID = os.getenv("GMAIL_API_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GMAIL_API_CLIENT_SECRET")
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'  # avoids error being thrown for duplicate scopes (doesn't matter for this use case)
+
+CLIENT_ID = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_ID"]
+CLIENT_SECRET = st.secrets["GMAIL_API_CREDENTIALS"]["CLIENT_SECRET"]
 
 CLIENT_CONFIG = {
     "web": {
@@ -27,13 +29,13 @@ CLIENT_CONFIG = {
 }
 
 def get_user_info(creds):
-    try:
-        oauth2_service = build('oauth2', 'v2', credentials=creds)
-        user_info = oauth2_service.userinfo().get().execute()
-        return user_info.get('email')
-    except Exception as e:
-        logger.error(f"Error getting user info: {e}")
-        return None
+    # Build the OAuth2 service to get user info
+    oauth2_service = build('oauth2', 'v2', credentials=creds)
+    
+    # Get user info
+    user_info = oauth2_service.userinfo().get().execute()
+
+    return user_info.get('email')
 
 def authorize_gmail_api():
     """Shows basic usage of the Gmail API.
@@ -113,21 +115,32 @@ def authenticate_user():
         st.error("Could not log in user")
 
 def switch_account(selected_email):
-    try:
-        if selected_email in st.session_state.tokens:
-            st.session_state.creds = st.session_state.tokens[selected_email]
-            st.session_state.user_email = selected_email
-        else:
-            st.error("Account not authorized. Please log in.")
-    except Exception as e:
-        logger.error(f"Error switching account: {e}")
-        st.error("Failed to switch account. Please try again.")
+    """
+    Switch to the selected Gmail account.
+
+    Args:
+        selected_email (str): The email address of the account to switch to.
+
+    Returns:
+        None
+    """
+    if selected_email in st.session_state.tokens:
+        st.session_state.creds = st.session_state.tokens[selected_email]
+        st.session_state.user_email = selected_email
+    else:
+        st.error("Account not authorized. Please log in.")
 
 def store_token(email, creds):
-    try:
-        if "tokens" not in st.session_state:
-            st.session_state.tokens = {}
-        st.session_state.tokens[email] = creds
-    except Exception as e:
-        logger.error(f"Error storing token: {e}")
-        st.error("Failed to store token. Please try again.")
+    """
+    Store the OAuth token for a Gmail account.
+
+    Args:
+        email (str): The email address of the account.
+        creds: The OAuth credentials.
+
+    Returns:
+        None
+    """
+    if "tokens" not in st.session_state:
+        st.session_state.tokens = {}
+    st.session_state.tokens[email] = creds
