@@ -36,74 +36,81 @@ def get_user_info(creds):
         return None
 
 def authorize_gmail_api():
-    try:
-        creds = None
-        if os.path.exists("token.json"):
-            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-            st.info("Already logged in")
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
-                flow.redirect_uri = MAIN_REDIRECT_URI
+    """Shows basic usage of the Gmail API.
+    Lists the user's Gmail labels.
+    """
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        st.info("Already logged in")
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_config(
+                CLIENT_CONFIG, SCOPES
+            )
+            flow.redirect_uri = MAIN_REDIRECT_URI
 
-                authorization_url, state = flow.authorization_url(
-                    access_type='offline',
-                    include_granted_scopes='true',
-                    prompt='consent'
-                )
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                prompt='consent')
 
-                st.markdown(
-                    f"""
-                    <style>
-                    .custom-button {{
-                        display: inline-block;
-                        background-color: #4CAF50; /* Green background */
-                        color: white !important;  /* White text */
-                        padding: 10px 24px;
-                        text-align: center;
-                        text-decoration: none;
-                        font-size: 16px;
-                        border-radius: 5px;
-                        margin-top: 5px; /* Reduce space above the button */
-                        margin-bottom: 5px; /* Reduce space below the button */
-                    }}
-                    .custom-button:hover {{
-                        background-color: #45a049;
-                    }}
-                    </style>
-                    <a href="{authorization_url}" target="_blank" class="custom-button">Authorize with Google</a>
-                    """,
-                    unsafe_allow_html=True
-                )
-    except Exception as e:
-        logger.error(f"Error authorizing Gmail API: {e}")
-        st.error("Failed to authorize Gmail API. Please try again.")
+            st.markdown(
+                f"""
+                <style>
+                .custom-button {{
+                    display: inline-block;
+                    background-color: #4CAF50; /* Green background */
+                    color: white !important;  /* White text */
+                    padding: 10px 24px;
+                    text-align: center;
+                    text-decoration: none;
+                    font-size: 16px;
+                    border-radius: 5px;
+                    margin-top: 5px; /* Reduce space above the button */
+                    margin-bottom: 5px; /* Reduce space below the button */
+                }}
+                .custom-button:hover {{
+                    background-color: #45a049;
+                }}
+                </style>
+                <a href="{authorization_url}" target="_blank" class="custom-button">Authorize with Google</a>
+                """,
+                unsafe_allow_html=True
+            )
 
 def authenticate_user():
-    try:
-        auth_code = st.experimental_get_query_params().get('code', None)
-        if auth_code:
-            flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
-            flow.redirect_uri = MAIN_REDIRECT_URI
-            flow.fetch_token(code=auth_code)
-            creds = flow.credentials
-            if creds:
-                email = get_user_info(creds)
-                if email:
-                    store_token(email, creds)
-                    st.session_state.creds = creds
-                    st.session_state.user_email = email
-                    st.experimental_set_query_params()
-                    st.success("Logged in successfully!")
-                else:
-                    st.error("Failed to retrieve user email.")
-        else:
-            st.error("Could not log in user")
-    except Exception as e:
-        logger.error(f"Error authenticating user: {e}")
-        st.error("Failed to authenticate user. Please try again.")
+    """after logging in with google, you have a code in the url. This function retrieves the code and fetches the credentials and authenticates user"""
+    auth_code = st.experimental_get_query_params().get('code', None)
+    if auth_code is not None:
+        logger.info("INSIDE CODE")
+        # make a new flow to fetch tokens
+        flow = InstalledAppFlow.from_client_config(
+                CLIENT_CONFIG, SCOPES, 
+            )
+        flow.redirect_uri = MAIN_REDIRECT_URI
+        flow.fetch_token(code=auth_code)
+        st.experimental_set_query_params()
+        creds = flow.credentials
+        if creds:
+            st.session_state.creds = creds
+            # Save the credentials for future use
+            with open('token.json', 'w') as token_file:
+                token_file.write(creds.to_json())
+            st.success("Authorization successful! Credentials have been saved.")
+
+            # Save the credentials for the next run
+            with open("token.json", "w") as token: 
+                token.write(creds.to_json())
+            # get user email
+            user_email = get_user_info(creds)
+            st.session_state.user_email = user_email
+            st.experimental_rerun()
+    else:
+        st.error("Could not log in user")
 
 def switch_account(selected_email):
     try:
