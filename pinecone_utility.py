@@ -42,11 +42,11 @@ class PineconeUtility:
         data_with_metadata = []
 
         for doc, embedding in zip(documents, doc_embeddings):
-            doc_text = doc["text"]
-            doc_date = doc["date"]
-            doc_sender = doc["from"]
-            doc_subject = doc["subject"]
-            doc_email_link = doc["email_link"]
+            doc_text = doc.get("text", "")
+            doc_date = doc.get("date", "")
+            doc_sender = doc.get("from", "")
+            doc_subject = doc.get("subject", "")
+            doc_email_link = doc.get("email_link", "")
 
             if doc_text is None or doc_text == "":
                 continue
@@ -61,7 +61,7 @@ class PineconeUtility:
                 "metadata": {
                     "user_email": user_email,
                     "text": doc_text[:1000],  # Truncate text to reduce metadata size
-                    "date": doc_date if doc_date is not None else "",
+                    "date": doc_date,
                     "sender": doc_sender,
                     "subject": doc_subject,
                     "email_link": doc_email_link
