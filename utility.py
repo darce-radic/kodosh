@@ -86,8 +86,8 @@ def authorize_gmail_api():
 
 def authenticate_user():
     """after logging in with google, you have a code in the url. This function retrieves the code and fetches the credentials and authenticates user"""
-    auth_code = st.query_params.get('code', [None])[0]
-    if auth_code:
+    auth_code = st.query_params.get('code', None)
+    if auth_code is not None:
         logger.info("INSIDE CODE")
         try:
             # make a new flow to fetch tokens
@@ -96,6 +96,7 @@ def authenticate_user():
                 )
             flow.redirect_uri = MAIN_REDIRECT_URI
             flow.fetch_token(code=auth_code)
+            st.query_params.clear()
             creds = flow.credentials
             if creds:
                 st.session_state.creds = creds
