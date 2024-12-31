@@ -96,8 +96,8 @@ if st.button("Logout"):
     st.rerun()
 
 st.write("Specify the date range for fetching emails:")
-start_date = st.date_input("Start date", value=st.session_state.start_date, key='start_date')
-end_date = st.date_input("End date", value=st.session_state.end_date, key='end_date')
+start_date = st.date_input("Start date", value=st.session_state.start_date, key='start_date_input')
+end_date = st.date_input("End date", value=st.session_state.end_date, key='end_date_input')
 
 if st.button("Upload mail contents"):
     st.info("Uploading emails within the specified date range")
