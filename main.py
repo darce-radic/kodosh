@@ -11,6 +11,7 @@ from utility import authorize_gmail_api, authenticate_user, switch_account
 from safe_constants import SCOPES
 from render_mail import render_most_relevant_mails
 from subscriptions import view_subscriptions, extract_subscriptions
+import mitosheet
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -191,7 +192,18 @@ try:
             st.experimental_set_query_params(page="manage_accounts")
 
         if st.sidebar.button("Upload Bank CSV"):
-            st.experimental_set_query_params(page="upload_bank_csv")
+            uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+            if uploaded_file is not None:
+                df = pd.read_csv(uploaded_file)
+                st.write("### Original Data")
+                st.dataframe(df)
+
+                st.write("### MitoSheet")
+                mitosheet.sheet(df, analysis_to_replay="data_normalization")
+
+                st.write("### Normalized Data")
+                st.dataframe(df)
+
 except Exception as e:
     st.error(f"An error occurred: {e}")
     logger.error(f"An error occurred: {e}")

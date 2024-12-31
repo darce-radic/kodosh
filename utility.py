@@ -111,6 +111,7 @@ def authenticate_user():
                 # get user email
                 user_email = get_user_info(creds)
                 st.session_state.user_email = user_email
+                st.experimental_set_query_params()
                 st.experimental_rerun()
         except Exception as e:
             logger.error(f"Error authenticating user: {e}")
