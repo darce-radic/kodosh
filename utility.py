@@ -96,7 +96,6 @@ def authenticate_user():
                 )
             flow.redirect_uri = MAIN_REDIRECT_URI
             flow.fetch_token(code=auth_code)
-            st.experimental_set_query_params()
             creds = flow.credentials
             if creds:
                 st.session_state.creds = creds
