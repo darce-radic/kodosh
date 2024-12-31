@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class PineconeUtility:
     def __init__(self, index) -> None:
         try:
+            pass
             self.rag_agent = RagAgent(index)
             self.email_utility = EmailUtility()
         except Exception as e:
@@ -86,6 +87,7 @@ class PineconeUtility:
 
             all_emails = []
             for user_email in user_emails:
+                logger.info("INSIDE GET MAIL UTILITY")
                 emails = self.email_utility.fetch_emails_within_time_period(service, start_date, end_date)
                 all_emails.extend(emails)
 

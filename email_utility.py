@@ -4,6 +4,8 @@ from googleapiclient.discovery import build
 from tqdm.auto import tqdm
 import streamlit as st
 
+import logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EmailUtility:
@@ -11,6 +13,7 @@ class EmailUtility:
         pass
 
     def _get_email_body(self, msg):
+        logger.info("INSIDE GET MAIL")
         if 'parts' in msg['payload']:
             for part in msg['payload']['parts']:
                 if part['mimeType'] == 'text/plain':
@@ -24,6 +27,7 @@ class EmailUtility:
 
     def fetch_emails_within_time_period(self, service, start_date, end_date):
         try:
+            logger.info("INSIDE GET MAIL IN PERIOD")
             all_emails = []
             query = f"after:{start_date} before:{end_date}"
             results = service.users().messages().list(userId='me', q=query).execute()
@@ -45,6 +49,8 @@ class EmailUtility:
                     email_text = self._get_email_body(msg)
                     if email_text is None or email_text == "":
                         continue
+                    
+                    logger.info("INSIDE GET MAIL DETaILS")
 
                     email_data = {
                         "text": email_text,
