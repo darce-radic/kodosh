@@ -83,7 +83,7 @@ def authorize_gmail_api():
 
 def authenticate_user():
     try:
-        auth_code = st.query_params.get('code', None)
+        auth_code = st.experimental_get_query_params().get('code', None)
         if auth_code:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             flow.redirect_uri = MAIN_REDIRECT_URI
@@ -95,7 +95,7 @@ def authenticate_user():
                     store_token(email, creds)
                     st.session_state.creds = creds
                     st.session_state.user_email = email
-                    st.query_params.clear()
+                    st.experimental_set_query_params()
                     st.success("Logged in successfully!")
                 else:
                     st.error("Failed to retrieve user email.")
@@ -124,4 +124,3 @@ def store_token(email, creds):
     except Exception as e:
         logger.error(f"Error storing token: {e}")
         st.error("Failed to store token. Please try again.")
-        
