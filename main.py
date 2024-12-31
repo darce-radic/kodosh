@@ -76,7 +76,7 @@ try:
         logout(is_from_login_func=True)
         authorize_gmail_api()
 
-    if st.experimental_get_query_params().get('code', None):
+    if st.query_params.get('code', None):
         authenticate_user()
 
     if st.button("Login"):

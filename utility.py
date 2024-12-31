@@ -83,7 +83,7 @@ def authorize_gmail_api():
 
 def authenticate_user():
     try:
-        auth_code = st.experimental_get_query_params().get('code', None)
+        auth_code = st.query_params.get('code', None)
         if auth_code:
             flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
             flow.redirect_uri = MAIN_REDIRECT_URI
