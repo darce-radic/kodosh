@@ -56,5 +56,5 @@ class RagAgent:
         return response.content, mails
 
     def get_embedding(self, text: str) -> list[float]:
-        response = self.llm.embed(text)
-        return response['embedding']
+        response = openai_client.Embedding.create(input=text, model="text-embedding-ada-002")
+        return response['data'][0]['embedding']
