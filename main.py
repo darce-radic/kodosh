@@ -5,8 +5,8 @@ from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
-from rag_agent import RagAgent
-from pinecone_utility import PineconeUtility
+from rag_agent import RagAgent  # Ensure this path is correct
+from pinecone_utility import PineconeUtility  # Ensure this path is correct
 from utility import authorize_gmail_api, authenticate_user, switch_account, get_user_info
 from safe_constants import SCOPES
 from render_mail import render_most_relevant_mails
