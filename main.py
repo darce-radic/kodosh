@@ -16,7 +16,9 @@ import mitosheet
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 load_dotenv()
+from safe_constants import SCOPES
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -80,11 +82,8 @@ try:
     if st.query_params.get('code', None):
         authenticate_user()
 
-    if not st.session_state.creds or not st.session_state.user_email:
-        st.warning("Please log in to continue.")
-        if st.button("Login"):
-            login()
-        st.stop()
+    if st.button("Login"):
+        login()
 
     if st.button("Logout"):
         logout()
