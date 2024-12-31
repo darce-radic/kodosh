@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 load_dotenv()
-from safe_constants import SCOPES
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -37,11 +36,6 @@ try:
         st.title(f"Hello {st.session_state.user_email}")
     else:
         st.title("Welcome to the Email Assistant")
-
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    from safe_constants import SCOPES
 
     if "creds" not in st.session_state:
         st.session_state.creds = None

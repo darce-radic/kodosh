@@ -6,6 +6,7 @@ import streamlit as st
 from gspread_dataframe import set_with_dataframe
 from rag_agent import RagAgent
 from email_utility import EmailUtility
+from googleapiclient.discovery import build
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
