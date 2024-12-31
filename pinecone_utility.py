@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import pandas as pd
 import streamlit as st
 from gspread_dataframe import set_with_dataframe
 from rag_agent import RagAgent
@@ -8,6 +7,9 @@ from email_utility import EmailUtility
 from googleapiclient.discovery import build
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import base64
+from tqdm.auto import tqdm
+from safe_constants import MAX_CHARACTER_LENGTH_EMAIL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,6 +24,15 @@ class PineconeUtility:
             st.error("Failed to initialize PineconeUtility. Please try again.")
 
     def _generate_short_id(self, content: str) -> str:
+        """
+        Generate a short ID based on the content using SHA-256 hash.
+
+        Args:
+        - content (str): The content for which the ID is generated.
+
+        Returns:
+        - short_id (str): The generated short ID.
+        """
         if content is None or content == "":
             return None
         hash_obj = hashlib.sha256()
@@ -89,75 +100,101 @@ class PineconeUtility:
             logger.error(f"Error upserting data to Pinecone: {e}")
             st.error("Failed to upsert data to Pinecone. Please try again.")
 
-    def _process_email_batch(self, batch_emails, index, user_email, progress_bar, status_text, total_emails, current_batch):
+    def _get_email_body(self, msg):
+        if 'parts' in msg['payload']:
+            # The email has multiple parts (possibly plain text and HTML)
+            for part in msg['payload']['parts']:
+                if part['mimeType'] == 'text/plain':  # Look for plain text
+                    body = part['body']['data']
+                    return base64.urlsafe_b64decode(body).decode('utf-8')
+        else:
+            # The email might have a single part, like plain text or HTML
+            body = msg['payload']['body'].get('data')
+            if body:
+                return base64.urlsafe_b64decode(body).decode('utf-8')
+        return None  # In case no plain text is found
+
+    def _list_emails_with_details(self, service, max_emails=100, start_date=None, end_date=None):
+        all_emails = []
+        query = ""
+        if start_date and end_date:
+            query = f"after:{start_date.strftime('%Y/%m/%d')} before:{end_date.strftime('%Y/%m/%d')}"
+        results = service.users().messages().list(userId='me', maxResults=max_emails, q=query).execute()
+        
+        # Fetch the first page of messages
+        messages = results.get('messages', [])
+        all_emails.extend(messages)
+
+        # Keep fetching emails until we reach the max limit or there are no more pages
+        while 'nextPageToken' in results and len(all_emails) < max_emails:
+            page_token = results['nextPageToken']
+            results = service.users().messages().list(userId='me', pageToken=page_token, q=query).execute()
+            messages = results.get('messages', [])
+            all_emails.extend(messages)
+
+            # Break if we exceed the max limit
+            if len(all_emails) >= max_emails:
+                all_emails = all_emails[:max_emails]  # Trim to max limit
+                break
+
+        progress_bar2 = st.progress(0)
+        status_text2 = st.text("Retrieving your emails...")
+
+        email_details = []
+        for idx, email in tqdm(enumerate(all_emails), desc="Fetching email details"):
+            # Fetch full email details
+            msg = service.users().messages().get(userId='me', id=email['id']).execute()
+            headers = msg['payload']['headers']
+
+            email_text = self._get_email_body(msg)
+            if email_text is None or email_text == "":
+                continue
+            if len(email_text) >= MAX_CHARACTER_LENGTH_EMAIL:
+                email_text = email_text[:MAX_CHARACTER_LENGTH_EMAIL]  # Truncate long emails
+            
+            # Extract date, sender, and subject from headers
+            email_data = {
+                "text": email_text,
+                'id': msg['id'],
+                'date': next((header['value'] for header in headers if header['name'] == 'Date'), None),
+                'from': next((header['value'] for header in headers if header['name'] == 'From'), None),
+                'subject': next((header['value'] for header in headers if header['name'] == 'Subject'), None),
+                "email_link": f"https://mail.google.com/mail/u/0/#inbox/{email['id']}"
+            }
+            email_details.append(email_data)
+            progress_bar2.progress((idx + 1) / len(all_emails))  # Progress bar update
+            status_text2.text(f"Retrieving email {idx + 1} of {len(all_emails)}")
+
+        return email_details
+
+    def upload_email_content(self, index, user_email=None, max_emails=100, start_date=None, end_date=None):
+        # Build Gmail service
+        if not st.session_state.creds: 
+            st.error("Please login first")
+            return
+        service = build('gmail', 'v1', credentials=st.session_state.creds)
+        emails = self._list_emails_with_details(service, max_emails=max_emails, start_date=start_date, end_date=end_date)
+
+        progress_bar = st.progress(0)
+        status_text = st.text("Creating embeddings...")
+
+        # Embed emails
         embeddings = []
-        all_subscriptions = []
-        for email in batch_emails:
+        for idx, email in tqdm(enumerate(emails), desc="Creating embeddings"):
+            status_text.text(f"Creating embedding {idx + 1} of {len(emails)}")
             if email["text"] is None or email["text"] == "":
                 continue
             try:
                 embeddings.append(self.rag_agent.get_embedding(email["text"]))
-                subscriptions = self.rag_agent._identify_subscriptions(email["text"])
-                all_subscriptions.extend(subscriptions)
+                # Update the progress bar and status text
+                progress_bar.progress((idx + 1) / len(emails))  # Progress bar update
             except Exception as e:
-                logger.error(f"Error processing email: {e}")
-                st.error("Failed to process email. Please try again.")
-        data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=user_email)
+                logger.error(f"Error embedding email {idx}: {e}")
+
+        data_with_meta_data = self._combine_vector_and_text(documents=emails, doc_embeddings=embeddings, user_email=user_email) 
         self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
-        progress_bar.progress((current_batch * 100) / total_emails)
-        status_text.text(f"Processed {current_batch * 100} of {total_emails} emails")
-        return all_subscriptions
 
-    def upload_email_content(self, index, user_emails, sheet_url):
-        try:
-            if not st.session_state.creds:
-                st.error("Please login first")
-                return False
-
-            start_date = st.session_state.get('start_date')
-            end_date = st.session_state.get('end_date')
-            if not start_date or not end_date:
-                st.error('Start date and end date must be specified.')
-                return False
-
-            # Convert dates to strings
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            end_date_str = end_date.strftime("%Y-%m-%d")
-
-            service = build('gmail', 'v1', credentials=st.session_state.creds)
-
-            all_emails = []
-            for user_email in user_emails:
-                logger.info("INSIDE GET MAIL UTILITY")
-                emails = self.email_utility.fetch_emails_within_time_period(service, start_date_str, end_date_str)
-                all_emails.extend(emails)
-
-            total_emails = len(all_emails)
-            progress_bar = st.progress(0)
-            status_text = st.text("Creating embeddings...")
-
-            batch_size = 100
-            all_subscriptions = []
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = []
-                for i in range(0, total_emails, batch_size):
-                    batch_emails = all_emails[i:i+batch_size]
-                    futures.append(executor.submit(self._process_email_batch, batch_emails, index, user_emails[0], progress_bar, status_text, total_emails, i // batch_size + 1))
-
-                for future in as_completed(futures):
-                    try:
-                        result = future.result()
-                        all_subscriptions.extend(result)
-                    except Exception as e:
-                        logger.error(f"Error in batch processing: {e}")
-                        st.error("Failed to process batch. Please try again.")
-
-            # Skip storing subscriptions in sheet for now
-            # self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
-            return True
-        except Exception as e:
-            logger.error(f"Error uploading email content: {e}")
-            st.error(f"Failed to upload email content: {e}")
+        return True
 
     def get_all_subscriptions(self):
         # This method should return all subscriptions
@@ -173,7 +210,7 @@ end_date = st.date_input("End date", key='end_date')
 
 if st.button("Upload Emails"):
     pinecone_utility = PineconeUtility(index="your_index_name")
-    if pinecone_utility.upload_email_content(index="your_index_name", user_emails=[st.session_state.user_email], sheet_url=st.session_state.sheet_url):
+    if pinecone_utility.upload_email_content(index="your_index_name", user_email=st.session_state.user_email, start_date=start_date, end_date=end_date):
         st.success("Emails uploaded and subscriptions stored successfully!")
     else:
         st.error("Failed to upload emails and store subscriptions.")
