@@ -7,6 +7,7 @@ from gspread_dataframe import set_with_dataframe
 from rag_agent import RagAgent
 from email_utility import EmailUtility
 from googleapiclient.discovery import build
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +71,23 @@ class PineconeUtility:
             logger.error(f"Error storing subscriptions in sheet: {e}")
             st.error("Failed to store subscriptions in sheet. Please try again.")
 
+    def _process_email_batch(self, batch_emails, index, user_email):
+        embeddings = []
+        all_subscriptions = []
+        for email in batch_emails:
+            if email["text"] is None or email["text"] == "":
+                continue
+            try:
+                embeddings.append(self.rag_agent.get_embedding(email["text"]))
+                subscriptions = self._identify_subscriptions(email["text"])
+                all_subscriptions.extend(subscriptions)
+            except Exception as e:
+                logger.error(f"Error processing email: {e}")
+                st.error("Failed to process email. Please try again.")
+        data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=user_email)
+        self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
+        return all_subscriptions
+
     def upload_email_content(self, index, user_emails, sheet_url):
         try:
             if not st.session_state.creds:
@@ -94,27 +112,23 @@ class PineconeUtility:
             status_text = st.text("Creating embeddings...")
 
             batch_size = 100
-            for i in range(0, len(all_emails), batch_size):
-                batch_emails = all_emails[i:i+batch_size]
-                embeddings = []
-                all_subscriptions = []
-                for idx, email in tqdm(enumerate(batch_emails), desc="Creating embeddings"):
-                    status_text.text(f"Creating embedding {i + idx + 1} of {len(all_emails)}")
-                    if email["text"] is None or email["text"] == "":
-                        continue
+            all_subscriptions = []
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = []
+                for i in range(0, len(all_emails), batch_size):
+                    batch_emails = all_emails[i:i+batch_size]
+                    futures.append(executor.submit(self._process_email_batch, batch_emails, index, user_emails[0]))
+
+                for future in as_completed(futures):
                     try:
-                        embeddings.append(self.rag_agent.get_embedding(email["text"]))
-                        subscriptions = self._identify_subscriptions(email["text"])
-                        all_subscriptions.extend(subscriptions)
-                        progress_bar.progress((i + idx + 1) / len(all_emails))
+                        result = future.result()
+                        all_subscriptions.extend(result)
                     except Exception as e:
-                        logger.error(f"Error embedding email {i + idx}: {e}")
-                        st.error("Failed to create embedding. Please try again.")
+                        logger.error(f"Error in batch processing: {e}")
+                        st.error("Failed to process batch. Please try again.")
+                    progress_bar.progress((i + batch_size) / len(all_emails))
 
-                data_with_meta_data = self._combine_vector_and_text(documents=batch_emails, doc_embeddings=embeddings, user_email=None)
-                self._upsert_data_to_pinecone(index, data_with_metadata=data_with_meta_data)
-                self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
-
+            self._store_subscriptions_in_sheet(all_subscriptions, sheet_url)
             return True
         except Exception as e:
             logger.error(f"Error uploading email content: {e}")
