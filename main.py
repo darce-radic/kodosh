@@ -13,7 +13,7 @@ from render_mail import render_most_relevant_mails
 from subscriptions import view_subscriptions, extract_subscriptions
 import mitosheet
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -64,7 +64,7 @@ try:
         st.session_state.end_date = date.today()
 
     def logout(is_from_login_func=False):
-        st.experimental_set_query_params()
+        st.query_params.clear()
         st.session_state.user_email = None
         st.session_state.creds = None
 
@@ -77,7 +77,7 @@ try:
         logout(is_from_login_func=True)
         authorize_gmail_api()
 
-    if st.query_params.get('code', [None])[0]:
+    if st.query_params.get('code', None):
         authenticate_user()
 
     if not st.session_state.creds or not st.session_state.user_email:
@@ -88,7 +88,7 @@ try:
 
     if st.button("Logout"):
         logout()
-        st.experimental_rerun()
+        st.rerun()
 
     if st.session_state.creds and st.session_state.user_email:
         st.write("## Query for specific emails (returns specific emails you are looking for)")
@@ -106,7 +106,7 @@ try:
                         st.session_state.most_relevant_mails = mails
                         st.session_state.selected_mail = mails[0]
                         st.session_state.selected_mail_index = 0
-                        st.experimental_rerun()
+                        st.rerun()
         with col2:
             if st.button("Ask general questions regarding emails"):
                 if prompt == "":
